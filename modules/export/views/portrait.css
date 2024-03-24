@@ -1,0 +1,7 @@
+ .page {
+   width: 21cm;
+   min-height: 29.7cm;
+ }
+ @page {
+   size: A4 portrait;
+ }

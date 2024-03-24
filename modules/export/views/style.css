@@ -1,0 +1,203 @@
+body {
+  font-size: 10pt;
+}
+h1,
+h2 {
+  font-size: 1.6em;
+}
+img.logo {
+  max-height: 7em;
+  width: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+td,
+th {
+  font-weight: normal;
+  border-spacing: 0;
+}
+:not(.collapse) > thead > tr > th,
+:not(.collapse) > thead > tr > th,
+:not(.collapse) > tbody > tr > td,
+:not(.collapse) > tbody > tr > td {
+  padding: 5px;
+}
+.border_all {
+  border-style: solid;
+}
+.border_bottom {
+  border-bottom-style: solid;
+}
+.border_top {
+  border-top-style: solid;
+}
+.border_left {
+  border-left-style: solid;
+}
+.border_right {
+  border-right-style: solid;
+}
+.border_left_top {
+  border-top-style: solid;
+  border-left-style: solid;
+}
+.border_bottom_right {
+  border-bottom-style: solid;
+  border-right-style: solid;
+}
+.border_left_bottom_right {
+  border-left-style: solid;
+  border-bottom-style: solid;
+  border-right-style: solid;
+}
+.border_left_bottom {
+  border-left-style: solid;
+  border-bottom-style: solid;
+}
+.center {
+  text-align: center;
+}
+.right {
+  text-align: right;
+}
+.left {
+  text-align: left;
+}
+.bottom {
+  vertical-align: bottom;
+}
+.top {
+  vertical-align: top;
+}
+.middle {
+  vertical-align: middle;
+}
+.nowrap {
+  white-space: nowrap;
+}
+.checked {
+  font-size: 2em;
+  width: 0.5em;
+  display: inline-block;
+  line-height: 0.5;
+}
+.line1,
+.line2,
+.line3,
+.line4 {
+  margin: 0 0.5em;
+  border-bottom-style: dotted;
+  line-height: 1;
+}
+.line1,
+.line2,
+.line3,
+.line4 {
+  display: inline-block;
+}
+.line1 {
+  min-width: 5em;
+}
+.line2 {
+  min-width: 10em;
+}
+.line3 {
+  min-width: 15em;
+}
+.line4 {
+  width: 100%;
+  margin: 0;
+}
+.line5 {
+  text-decoration: underline dotted 1px;
+  text-underline-offset: 3px;
+  margin: 0 0.5em;
+}
+.line7 {
+  text-decoration: underline dotted 1px;
+  text-underline-offset: 3px;
+}
+.line6 {
+  border-bottom-style: dotted;
+  line-height: 1;
+}
+.indent .line5 {
+  margin: 0;
+}
+tr.bg1 > th {
+  background-color: #DDD;
+  font-weight: bold;
+  white-space: nowrap;
+}
+tr.bg2 > th {
+  font-weight: bold;
+}
+tr.bg2 > th,
+table.data > thead > tr > th,
+table.data > tbody > tr > th {
+  white-space: nowrap;
+  background-color: #EEE;
+}
+table.border > thead > tr > th,
+table.data.border > tbody > tr > th,
+table.data.border > tbody > tr > td {
+  border-style: solid;
+}
+.section {
+  margin-top: 1em;
+}
+.padding {
+  padding: 0.5em 1em 0.5em 1em;
+}
+ol {
+  padding-left: 2.7em;
+}
+.multiline {
+  display: block;
+  background-color: #fff;
+  background-size: 4px 4px, 4px 2em;
+  background-image: linear-gradient(to bottom, transparent 5px, #fff 5px), linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to right, transparent 2px, #fff 2px), linear-gradient(to bottom, #444 1px, transparent 1px);
+  box-shadow: 0 0 0 1px inset #fff;
+  position: relative;
+  padding-bottom: 2px;
+}
+.multiline::before {
+  content: '';
+  background-color: #fff;
+  position: absolute;
+  top: -2px;
+  height: 3px;
+  right: 0;
+  left: 0;
+}
+.multiline > .label {
+  background-color: #fff;
+  position: relative;
+  margin-bottom: -2px;
+  padding-bottom: 2px;
+  margin-right: 10px;
+}
+.signature {
+  padding-top: 2em;
+}
+.signature img {
+  max-width: 100px;
+  max-height: 100px;
+  margin-top: -2em;
+}
+table.signature {
+  width: auto;
+  margin: 2em auto 0;
+  padding: 0;
+}
+.td {
+  display: table-cell;
+}
+.tr {
+  display: table-row;
+}
+.table {
+  display: table;
+}

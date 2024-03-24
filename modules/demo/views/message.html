@@ -1,0 +1,45 @@
+<article class="setup_frm help">
+  <header>
+    <h3>Message Box</h3>
+  </header>
+  <article class=demo>
+    <div class=message>
+      <b>Message</b> : สำหรับแสดงข้อความ หรือความคิดเห็นทั่วไป สามารถเรียกใช้ได้โดยระบุ &lt;div class=message&gt;...&lt;/div&gt;
+    </div>
+    <div class=error>
+      <b>Error</b> : โดยทั่วไปจะใช้สำหรับแดงข้อผิดพลาด สามารถเรียกใช้ได้โดยระบุ &lt;div class=error&gt;...&lt;/div&gt;
+    </div>
+    <div class=warning>
+      <b>Warning!!!</b> : ใช้สำหรับแสดงข้อความ แจ้งเตือน ข้อควรระมัดระวัง สามารถเรียกใช้ได้โดยระบุ &lt;div class=warning&gt;...&lt;/div&gt;
+    </div>
+    <div class=tip>
+      <b>Tip</b> : ใช้สำหรับแสดงข้อความทั่วไป คำแนะนำ หรืออื่นๆ สามารถเรียกใช้ได้โดยระบุ &lt;div class=tip&gt;...&lt;/div&gt;
+    </div>
+  </article>
+  <article class=demo>
+    <header>
+      <h3>Notifications</h3>
+    </header>
+    <p class="center">กดปุ่มเพื่อแสดงข้อความเตือนที่มุมบนขวาของเว็บไซต์</p>
+    <p class="center">
+      <input id=btn_message type="button" value="Message" class="button green">
+      <input id=btn_error type="button" value="Error" class="button red">
+      <input id=btn_warning type="button" value="Warning" class="button orange">
+      <input id=btn_tip type="button" value="Tip" class="button blue">
+    </p>
+  </article>
+  <script>
+    callClick('btn_message', function() {
+      document.body.msgBox('สำหรับแสดงข้อความ หรือความคิดเห็นทั่วไป');
+    });
+    callClick('btn_error', function() {
+      document.body.msgBox('สำหรับแดงข้อผิดพลาด', 'error');
+    });
+    callClick('btn_warning', function() {
+      document.body.msgBox('สำหรับแสดงข้อความ แจ้งเตือน ข้อควรระมัดระวัง', 'warning', true);
+    });
+    callClick('btn_tip', function() {
+      document.body.msgBox('สำหรับแสดงข้อความทั่วไป คำแนะนำ หรืออื่นๆ', 'tip', false);
+    });
+  </script>
+</article>

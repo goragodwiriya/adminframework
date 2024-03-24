@@ -1,0 +1,8 @@
+.page {
+    min-height: 21cm;
+    width: 29.7cm;
+}
+
+@page {
+    size: A4 landscape;
+}

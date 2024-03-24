@@ -1,0 +1,281 @@
+<article class="setup_frm help">
+  <header>
+    <h3>Graphs</h3>
+  </header>
+  <article class=demo>
+    <section class=clear>
+      <h4>กราฟแบบเส้น (ค่าเริ่มต้น) และแสดงตารางข้อมูลด้วย ค่าสีเริ่มต้นจะอ่านมาจาก .term0-.term11</h4>
+      <div id="line">
+        <table class="data fullwidth border responsive-v" id="line_table">
+          <thead>
+            <tr>
+              <th>ประจำเดือน</th>
+              <th><a href="index.php?module=demo&amp;page=graphs&amp;m=1">ม.ค.</a></th>
+              <th><a href="index.php?module=demo&amp;page=graphs&amp;m=2" target="_blank">ก.พ.</a></th>
+              <th><a href="index.php?module=demo&amp;page=graphs&amp;m=3" target=_blank>มี.ค.</a></th>
+              <th>เม.ย.</th>
+              <th>พ.ค.</th>
+              <th>มิ.ย.</th>
+              <th>ก.ค.</th>
+              <th>ส.ค.</th>
+              <th>ก.ย.</th>
+              <th>ต.ค.</th>
+              <th>พ.ย.</th>
+              <th><a href='index.php?module=demo&amp;page=graphs&amp;m=12' target='_blank'>ธ.ค.</a></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>ผู้เยี่ยมชมทั้งหมด</th>
+              <td data-text="ม.ค.">12,000</td>
+              <td data-text="ก.พ.">13,000</td>
+              <td data-text="มี.ค.">16,000</td>
+              <td data-text="เม.ย.">19,000</td>
+              <td data-text="พ.ค.">22,000</td>
+              <td data-text="มิ.ย.">12,000</td>
+              <td data-text="ก.ค.">18,000</td>
+              <td data-text="ส.ค.">24,000</td>
+              <td data-text="ก.ย.">10,000</td>
+              <td data-text="ต.ค.">22,000</td>
+              <td data-text="พ.ย.">17,141</td>
+              <td data-text="ธ.ค.">18,646</td>
+            </tr>
+            <tr>
+              <th>เปิดดู</th>
+              <td data-text="ม.ค.">17,339</td>
+              <td data-text="ก.พ.">17,450</td>
+              <td data-text="มี.ค.">17,033</td>
+              <td data-text="เม.ย.">20,347</td>
+              <td data-text="พ.ค.">13,000</td>
+              <td data-text="มิ.ย.">14,014</td>
+              <td data-text="ก.ค.">14,395</td>
+              <td data-text="ส.ค.">18,867</td>
+              <td data-text="ก.ย.">19,000</td>
+              <td data-text="ต.ค.">11,589</td>
+              <td data-text="พ.ย.">13,230</td>
+              <td data-text="ธ.ค.">18,646</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <script>
+        /* เรียกใช้งานกราฟตามค่าเริ่มต้น ได้กราฟแบบเส้น อ่านข้อมูลจากตารางที่อยู่ในพื้นที่แสดงผล */
+        new GGraphs("line");
+      </script>
+    </section>
+    <section class=clear>
+      <h4>กราฟแบบเส้น (แบบโค้ง) ใช้ข้อมูลจากตารางด้านบน</h4>
+      <div id="spline"></div>
+      <script>
+        /* แสดงกราฟลงในพื้นที่ว่างเปล่าที่กำหนดไว้ */
+        new GGraphs('spline', {
+          /* ชนิดเส้นโค้ง */
+          type: 'spline',
+          /* อ่านข้อมูลจากตารางกราฟด้านบน */
+          table: 'line_table'
+        });
+      </script>
+    </section>
+    <section class=clear>
+      <h4>กราฟแบบแท่ง มีค่าติดลบ ไม่แสดงตารางข้อมูล</h4>
+      <div id="vchart">
+        <table class="hidden">
+          <thead>
+            <tr>
+              <th>ประจำเดือน</th>
+              <th><a href="index.php?module=demo&amp;page=graphs&amp;m=2">ก.พ.</a></th>
+              <th><a href="index.php?module=demo&amp;page=graphs&amp;m=3">มี.ค.</a></th>
+              <th><a href="index.php?module=demo&amp;page=graphs&amp;m=4">เม.ย.</a></th>
+              <th>พ.ค.</th>
+              <th>มิ.ย.</th>
+              <th>ก.ค.</th>
+              <th>ส.ค.</th>
+              <th>ก.ย.</th>
+              <th>ต.ค.</th>
+              <th>พ.ย.</th>
+              <th>ธ.ค.</th>
+              <th>ม.ค.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Total visitors</th>
+              <td>53,934</td>
+              <td>56,183</td>
+              <td>54,666</td>
+              <td>57,502</td>
+              <td>54,659</td>
+              <td>50,214</td>
+              <td>63,000</td>
+              <td>53,580</td>
+              <td>3</td>
+              <td>2</td>
+              <td>1</td>
+              <td>0</td>
+            </tr>
+            <tr class="bg2">
+              <th scope="row">การดูหน้าเว็บ</th>
+              <td>0</td>
+              <td>-1</td>
+              <td>-2</td>
+              <td>-3</td>
+              <td>-89,982</td>
+              <td>-89,458</td>
+              <td>-97,000</td>
+              <td>-94,582</td>
+              <td>-95,536</td>
+              <td>-91,721</td>
+              <td>-81,480</td>
+              <td>-61,235</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <script>
+        new GGraphs("vchart", {
+          /* กราฟแนวตั้ง */
+          type: 'vchart'
+        });
+      </script>
+    </section>
+    <section class=clear>
+      <h4>กราฟแบบแท่งแนวนอน ไม่แสดงตารางข้อมูล</h4>
+      <div id="hchart">
+        <table class="hidden">
+          <thead>
+            <tr>
+              <th>ประจำเดือน</th>
+              <th><a href="index.php?module=demo&amp;page=graphs&amp;m=1">January</a></th>
+              <th><a href="index.php?module=demo&amp;page=graphs&amp;m=2">Febuary</a></th>
+              <th><a href="index.php?module=demo&amp;page=graphs&amp;m=3">March</a></th>
+              <th>April</th>
+              <th>May</th>
+              <th>June</th>
+              <th>July</th>
+              <th>August</th>
+              <th>September</th>
+              <th>October</th>
+              <th>November</th>
+              <th>December</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>ผู้เยี่ยมชมทั้งหมด</th>
+              <td>20</td>
+              <td>10</td>
+              <td>20</td>
+              <td>0</td>
+              <td>40</td>
+              <td>50</td>
+              <td>60</td>
+              <td>70</td>
+              <td>80</td>
+              <td>90</td>
+              <td>10</td>
+              <td>11</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <script>
+        new GGraphs("hchart", {
+          /* กราฟแนวนอน */
+          type: 'hchart',
+          /* ความสูงของกราฟ */
+          height: '500px'
+        });
+      </script>
+    </section>
+    <section class=clear>
+      <h4>กราฟวงกลม กำหนดสีที่ต้องการเอง</h4>
+      <div id="pie">
+        <table class="hidden">
+          <thead>
+            <tr>
+              <th>&nbsp;</th>
+              <th><a href="index.php?module=demo&amp;page=graphs&amp;m=1">ตัวอย่าง</a></th>
+              <th><a href="index.php?module=demo&amp;page=graphs&amp;m=2">การขอ Token สำหรับ LINE Notify</a></th>
+              <th><a href="index.php?module=demo&amp;page=graphs&amp;m=3">การใช้งาน CKFinder ร่วมกับ GCMS</a></th>
+              <th>ปัญหา undefined function mb_strlen()</th>
+              <th>การติดตั้งหรืออัปเกรดเป็น GCMS 4.5.0</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>เยี่ยมชม</th>
+              <td>1,726</td>
+              <td>3,000</td>
+              <td>1,000</td>
+              <td>7,000</td>
+              <td>1,112</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <script>
+        new GGraphs("pie", {
+          /* กราฟวงกลม */
+          type: "pie",
+          /* กำหนดสีของกราฟ  ถ้าไม่กำหนดจะไปอ่านจาก .term0-.term11 */
+          colors: ["#B2D7E9", "#3A6B8B", "#133C3E", "#718E4C", "#F2819B"]
+        });
+      </script>
+    </section>
+    <section class=clear>
+      <h4>กราฟแบบโดนัท</h4>
+      <div id="donut">
+      </div>
+      <script>
+        new GGraphs("donut", {
+          /* กราฟโดนัท */
+          type: "donut",
+        }).setDatas({
+          /* ข้อมูลส่วนหัวของกราฟ */
+          headers: {
+            /* ใช้แสดงใน tooltip headers.title + headers.items + rows.title + rows.items.title */
+            title: 'บทความ',
+            items: [{
+              text: 'ตัวอย่างการแสดงกราฟ',
+              href: 'index.php?module=demo&amp;page=graphs&amp;m=1'
+            }, {
+              text: 'การขอ Token สำหรับ LINE Notify',
+              href: 'index.php?module=demo&amp;page=graphs&amp;m=2',
+              target: '_balnk'
+            }, {
+              text: 'การใช้งาน CKFinder ร่วมกับ GCMS',
+              href: 'index.php?module=demo&amp;page=graphs&amp;m=3',
+              target: '_balnk'
+            }, {
+              text: 'ปัญหา undefined function mb_strlen()',
+              href: 'index.php?module=demo&amp;page=graphs&amp;m=4',
+              target: '_balnk'
+            }, {
+              text: 'การติดตั้งหรืออัปเกรดเป็น GCMS 4.5.0',
+              href: 'index.php?module=demo&amp;page=graphs&amp;m=5',
+              target: '_balnk'
+            }],
+          },
+          /* ข้อมูลกราฟ 1 แถวต่อกราฟ 1 เส้น กรณีนี้เป็นกราฟโดนัทสามารถใส่ข้อมูลได้แถวเดียว */
+          rows: [{
+            title: 'เปิดดู',
+            items: [{
+              /* ค่าของกราฟ */
+              value: 1799,
+              /* กำหนด Tooltip ของรายการที่ต้องการ */
+              tooltip: 'ใช้ Tooltip ที่กำหนดเอง'
+            }, {
+              value: 1545
+            }, {
+              value: 1055
+            }, {
+              value: 1702
+            }, {
+              value: 1522
+            }]
+          }]
+        });
+      </script>
+    </section>
+  </article>
+</article>

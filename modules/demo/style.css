@@ -1,0 +1,55 @@
+.demo h1,
+.demo h2,
+.demo h3,
+.demo h4,
+.demo h5,
+.demo h6 {
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  font-weight: inherit !important;
+  display: inline-block;
+}
+.help .demo {
+  padding: 10px;
+}
+.help section:not(:first-of-type) {
+  overflow: hidden;
+  padding-top: 30px;
+}
+.signature-component canvas {
+  border: 1px solid #ddd;
+}
+.help .buttons .button {
+  margin: 0 10px 10px 0;
+}
+.help .buttons p {
+  margin-bottom: 20px
+}
+/* Prompt Pay QR Code */
+.qrpayment {
+  margin: 0 auto;
+  width: 320px;
+  max-width: 100%;
+  border: 1px solid #ddd;
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.04);
+}
+.qrpayment header {
+  background-color: #113566;
+}
+.qrpayment img {
+  margin: 0 auto;
+  display: table;
+}
+.qrpayment img.promptpay {
+  margin: 30px auto 0;
+  max-width: 150px;
+}
+.qrpayment footer {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 10px;
+}
+.qrpayment footer small {
+  display: block;
+}
