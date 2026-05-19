@@ -1,0 +1,17 @@
+RewriteEngine On
+
+# API Rules - Redirect to .php if extension is missing
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^(.*)$ $1.php [L,QSA]
+
+<IfModule mod_headers.c>
+  # cache 1 week
+  <filesMatch ".(jpg|jpeg|png|gif|ico)$">
+    Header set Cache-Control "max-age=604800, public"
+  </filesMatch>
+  <filesMatch ".(css|js|ttf|woff|svg|eot)$">
+    Header set Cache-Control "max-age=604800, public"
+  </filesMatch>
+</IfModule>

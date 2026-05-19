@@ -1,0 +1,69 @@
+<aside data-component="sidebar"></aside>
+<div class="main-content">
+  <div>
+    <header data-component="topbar"></header>
+    <main class="content">
+      <div class="card-groups">
+        <header>
+          <div>
+            <h1 class="icon-dashboard">Dashboard</h1>
+            <p>Overview of key metrics and performance</p>
+          </div>
+        </header>
+        <div class="ggrid" data-component="api" data-endpoint="api/v1/dashboard" data-cache="true" data-cache-time="300000">
+          <!-- ลูกค้าทั้งหมด -->
+          <div class="block3 large6 stat-card" data-class="data.overview.customer_growth >= 0 ? 'positive' : 'negative'">
+            <div class="stat-header icon-users">
+              <div class="stat-title">ลูกค้าทั้งหมด</div>
+            </div>
+            <div class="stat-value" data-text="data.overview.total_customers"></div>
+            <div class="stat-change">
+              <span data-class="data.overview.customer_growth >= 0 ? 'icon-arrow-up' : 'icon-arrow-down'" data-text="data.overview.customer_growth"></span>% จากเดือนที่แล้ว
+            </div>
+          </div>
+          <!-- ดีลที่กำลังดำเนินการ -->
+          <div class="block3 large6 stat-card positive">
+            <div class="stat-header icon-create">
+              <div class="stat-title">ดีลที่กำลังดำเนินการ</div>
+            </div>
+            <div class="stat-value" data-text="data.overview.active_deals"></div>
+            <div class="stat-change"> มูลค่า <span data-text="data.overview.pipeline_value"></span> บาท </div>
+          </div>
+          <!-- รายได้เดือนนี้ -->
+          <div class="block3 large6 stat-card" data-class="data.overview.revenue_growth >= 0 ? 'positive' : 'negative'">
+            <div class="stat-header icon-wallet">
+              <div class="stat-title">รายได้เดือนนี้</div>
+            </div>
+            <div class="stat-value">฿<span data-text="data.overview.revenue_this_month"></span></div>
+            <div class="stat-change">
+              <span data-class="data.overview.revenue_growth >= 0 ? 'icon-arrow-up' : 'icon-arrow-down'" data-text="data.overview.revenue_growth"></span>% จากเดือนที่แล้ว
+            </div>
+          </div>
+          <!-- อัตราการปิดการขาย -->
+          <div class="block3 large6 stat-card positive">
+            <div class="stat-header icon-stats">
+              <div class="stat-title">อัตราการปิดการขาย</div>
+            </div>
+            <div class="stat-value"><span data-text="data.overview.win_rate_this_month"></span>%</div>
+            <div class="stat-change">
+              <span data-text="'Won: ' + data.overview.won_deals_this_month"></span> | <span data-text="'Lost: ' + data.overview.lost_deals_this_month"></span>
+            </div>
+          </div>`
+        </div>
+        <div class="ggrid">
+          <section class="block6">
+            <h2>ยอดขายรายไตรมาส</h2>
+            <div style="height: 400px;" data-component="graph" data-type="bar" data-url="api/v1/quarterly-sales"></div>
+          </section>
+          <section class="block6">
+            <h2>สัดส่วน Pipeline</h2>
+            <div style="height: 400px;" data-component="graph" data-type="pie" data-url="api/v1/pipeline-stats"></div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+  <footer class="footer">
+    <p class="center">&copy; 2025 Now.js - <a href="https://nowjs.net">nowjs.net</a></p>
+  </footer>
+</div>

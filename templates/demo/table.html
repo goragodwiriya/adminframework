@@ -1,0 +1,61 @@
+<aside data-component="sidebar"></aside>
+<div class="main-content">
+  <div>
+    <header data-component="topbar"></header>
+    <main class="content">
+      <div class="card-groups">
+        <header>
+          <h1 data-i18n>Last Active Users</h1>
+          <p data-i18n>Users who have been active in the last 30 days</p>
+        </header>
+        <section>
+          <div class="tablebody">
+            <table class="table border fullwidth" data-table="static-employees" data-source="api/v1/users" data-page-size="10" data-search-columns="name,username,phone" data-show-checkbox="true" data-actions='{"activate":"Activate","inactive":"Inactive","delete":"Delete"}' data-action-url="api/v1/users/action" data-action-button='Process|btn-success' data-row-actions='{
+              "print": {
+                "element": "button",
+                "className": "btn icon-print",
+                "title": "Print"
+              },
+              "edit": {
+                "element": "button",
+                "className": "btn btn-success icon-edit",
+                "title": "Edit",
+                "modal": {
+                  "template": "profile.html",
+                  "title": "Edit User Profile"
+                }
+              }
+            }'>
+              <thead>
+                <tr>
+                  <th data-field="id" data-sort="id" data-i18n>ID</th>
+                  <th data-field="name" data-sort="name" data-i18n>Name</th>
+                  <th data-field="phone" data-i18n>Phone</th>
+                  <th data-field="status" data-sort="status" class="center" data-class="center" data-filter="true" data-class="center" data-type="select" data-format="lookup" data-options='{"0":"User","1":"Admin"}' data-show-all="true" data-all-value="" data-label="Status" data-i18n>Status</th>
+                  <th data-field="active" class="center" data-class="center" data-filter="true" data-type="select" data-class="center" data-format="lookup" data-show-all="true" data-all-value="" data-label="Active" data-options='{"0":"Inactive","1":"Active"}' data-i18n>Active</th>
+                  <th data-field="create_date" data-sort="create_date" class="center" data-class="center" data-format="date" data-class="center" data-i18n>Created</th>
+                  <th data-field="lastvisited" data-sort="lastvisited" class="center" data-class="center" data-format="datetime" data-class="center" data-i18n>Last Visited</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+              <tfoot>
+                <tr data-show-checkbox="true">
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <footer class="footer">
+    <p class="center">&copy; 2025 Now.js - <a href="https://nowjs.net">nowjs.net</a></p>
+  </footer>
+</div>

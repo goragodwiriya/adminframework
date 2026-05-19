@@ -1,0 +1,204 @@
+<aside data-component="sidebar"></aside>
+<div class="main-content">
+  <div>
+    <header data-component="topbar"></header>
+    <main class="content">
+      <div class="card-groups">
+        <header>
+          <h1 data-i18n>General Settings</h1>
+          <p data-i18n>Configure your application preferences and options</p>
+        </header>
+        <section>
+          <form method="POST" action="api/v1/settings/update" data-form="settings" data-validate="true" data-reset="false" data-confirm="Save settings?" data-load-api="api/v1/settings">
+            <fieldset>
+              <legend class="icon-settings" data-i18n>Basic Settings</legend>
+
+              <div>
+                <label for="site_name" data-i18n>Site Name</label>
+                <span class="form-control icon-home">
+                  <input type="text" id="site_name" name="site_name" data-attr="value:site_name" maxlength="100" required>
+                </span>
+              </div>
+
+              <div>
+                <label for="site_description" data-i18n>Site Description</label>
+                <span class="form-control icon-info">
+                  <textarea rows="3" id="site_description" name="site_description" data-attr="value:site_description" maxlength="500"></textarea>
+                </span>
+              </div>
+
+              <div>
+                <div class="form-group">
+                  <div class="width50">
+                    <label for="language" data-i18n>Default Language</label>
+                    <span class="form-control icon-language">
+                      <select id="language" name="language" data-attr="value:language" data-options-key="languages">
+                        <option value="">Select language</option>
+                      </select>
+                    </span>
+                  </div>
+                  <div class="width50">
+                    <label for="timezone" data-i18n>Timezone</label>
+                    <span class="form-control icon-clock">
+                      <select id="timezone" name="timezone" data-attr="value:timezone" data-options-key="timezones">
+                        <option value="">Select timezone</option>
+                      </select>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label for="date_format" data-i18n>Date Format</label>
+                <span class="form-control icon-calendar">
+                  <select id="date_format" name="date_format" data-attr="value:date_format" data-options-key="date_formats">
+                    <option value="">Select format</option>
+                  </select>
+                </span>
+              </div>
+            </fieldset>
+
+            <!-- Appearance Settings -->
+            <fieldset>
+              <legend class="icon-color" data-i18n>Appearance Settings</legend>
+
+              <div>
+                <label for="theme" data-i18n>Theme</label>
+                <div class="form-control radiogroups icon-contrast">
+                  <label>
+                    <input type="radio" id="theme" name="theme" value="light" data-attr="checked:theme">
+                    <span data-i18n>Light</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="theme" value="dark" data-attr="checked:theme">
+                    <span data-i18n>Dark</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="theme" value="auto" data-attr="checked:theme">
+                    <span data-i18n>Auto</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <div class="form-group">
+                  <div class="width50">
+                    <label for="primary_color" data-i18n>Primary Color</label>
+                    <span class="form-control icon-color">
+                      <input type="color" id="primary_color" name="primary_color" data-attr="value:primary_color">
+                    </span>
+                  </div>
+                  <div class="width50">
+                    <label for="items_per_page" data-i18n>Items Per Page</label>
+                    <span class="form-control icon-list">
+                      <input type="number" id="items_per_page" name="items_per_page" data-attr="value:items_per_page" min="5" max="100" step="5">
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <input type="checkbox" class="switch" id="enable_animations" name="enable_animations" value="1" data-attr="checked:enable_animations">
+                <label for="enable_animations" data-i18n>Enable Animations</label>
+                <p class="comment" data-i18n>Enable smooth transitions and animations throughout the interface</p>
+              </div>
+            </fieldset>
+
+            <!-- Notification Settings -->
+            <fieldset>
+              <legend class="icon-bell" data-i18n>Notification Settings</legend>
+
+              <div>
+                <input type="checkbox" class="switch" id="email_notifications" name="email_notifications" value="1" data-attr="checked:email_notifications">
+                <label for="email_notifications" data-i18n>Email Notifications</label>
+                <p class="comment" data-i18n>Receive notifications via email</p>
+              </div>
+
+              <div>
+                <input type="checkbox" class="switch" id="push_notifications" name="push_notifications" value="1" data-attr="checked:push_notifications">
+                <label for="push_notifications" data-i18n>Push Notifications</label>
+                <p class="comment" data-i18n>Receive browser push notifications</p>
+              </div>
+
+              <div>
+                <label for="notification_sound" data-i18n>Notification Sound</label>
+                <span class="form-control icon-ads">
+                  <select id="notification_sound" name="notification_sound" data-attr="value:notification_sound" data-options-key="notification_sounds">
+                    <option value="">Select sound</option>
+                  </select>
+                </span>
+              </div>
+
+              <div>
+                <label for="notification_frequency" data-i18n>Notification Frequency</label>
+                <div class="form-control radiogroups icon-clock">
+                  <label>
+                    <input type="radio" id="notification_frequency" name="notification_frequency" value="instant" data-attr="checked:notification_frequency">
+                    <span data-i18n>Instant</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="notification_frequency" value="hourly" data-attr="checked:notification_frequency">
+                    <span data-i18n>Hourly</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="notification_frequency" value="daily" data-attr="checked:notification_frequency">
+                    <span data-i18n>Daily</span>
+                  </label>
+                </div>
+              </div>
+            </fieldset>
+
+            <!-- Advanced Settings -->
+            <fieldset>
+              <legend class="icon-cog" data-i18n>Advanced Settings</legend>
+
+              <div>
+                <input type="checkbox" class="switch" id="debug_mode" name="debug_mode" value="1" data-attr="checked:debug_mode">
+                <label for="debug_mode" data-i18n>Debug Mode</label>
+                <p class="comment" data-i18n>Enable debug mode for development and troubleshooting</p>
+              </div>
+
+              <div>
+                <div class="form-group">
+                  <div class="width50">
+                    <label for="cache_duration" data-i18n>Cache Duration (minutes)</label>
+                    <span class="form-control icon-clock">
+                      <input type="number" id="cache_duration" name="cache_duration" data-attr="value:cache_duration" min="0" max="1440" step="5">
+                    </span>
+                  </div>
+                  <div class="width50">
+                    <label for="api_rate_limit" data-i18n>API Rate Limit (per minute)</label>
+                    <span class="form-control icon-host">
+                      <input type="number" id="api_rate_limit" name="api_rate_limit" data-attr="value:api_rate_limit" min="10" max="1000" step="10">
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label for="allowed_domains" data-i18n>Allowed Domains</label>
+                <span class="form-control icon-world">
+                  <input type="text" id="allowed_domains" name="allowed_domains" data-element="tags" data-attr="value:allowed_domains" data-max-tags="20" placeholder="Add domain...">
+                </span>
+                <p class="comment" data-i18n>Press Enter to add domains (e.g., example.com)</p>
+              </div>
+
+              <div>
+                <input type="checkbox" class="switch" id="maintenance_mode" name="maintenance_mode" value="1" data-attr="checked:maintenance_mode">
+                <label for="maintenance_mode" data-i18n>Maintenance Mode</label>
+                <p class="comment" data-i18n>Enable maintenance mode to prevent public access</p>
+              </div>
+            </fieldset>
+
+            <fieldset class="submit right">
+              <button type="submit" class="btn btn-primary icon-save" data-i18n>Save Settings</button>
+            </fieldset>
+          </form>
+        </section>
+      </div>
+    </main>
+  </div>
+  <footer class="footer">
+    <p class="center">&copy; 2025 Now.js - <a href="https://nowjs.net">nowjs.net</a></p>
+  </footer>
+</div>
