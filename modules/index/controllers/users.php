@@ -119,7 +119,8 @@ class Controller extends \Gcms\Table
             if (file_exists(ROOT_PATH.DATA_FOLDER.'avatar/'.$row->id.self::$cfg->stored_img_type)) {
                 $row->avatar = WEB_URL.DATA_FOLDER.'avatar/'.$row->id.self::$cfg->stored_img_type;
             } else {
-                $row->avatar = null;
+                // is the string 'null' so that the frontend will show the default avatar instead (not actually null)
+                $row->avatar = 'null';
             }
 
             $data[] = $row;

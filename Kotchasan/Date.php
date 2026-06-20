@@ -1,5 +1,4 @@
 <?php
-
 namespace Kotchasan;
 
 /**
@@ -36,7 +35,7 @@ class Date
      * Returns the number of days (can be negative), years, months, and days [days, year, month, day].
      *
      * @param string|int  $begin_date The start date or birth date (Unix timestamp or date in the format YYYY-m-d)
-     * @param istring|int $end_date   The end date or today's date (Unix timestamp or date in the format YYYY-m-d)
+     * @param string|int $end_date   The end date or today's date (Unix timestamp or date in the format YYYY-m-d)
      *
      * @return array
      */
@@ -86,8 +85,8 @@ class Date
     /**
      * Returns the time difference in milliseconds.
      *
-     * @param  $firstTime
-     * @param  $lastTime
+     * @param string|int $firstTime The start time (Unix timestamp or date in the format YYYY-m-d H:i:s)
+     * @param string|int $lastTime  The end time (Unix timestamp or date in the format YYYY-m-d H:i:s)
      *
      * @return int
      */
@@ -157,32 +156,32 @@ class Date
             $ret = '';
             foreach ($match[0] as $item) {
                 switch ($item) {
-                    case ' ':
-                    case ':':
-                    case '/':
-                    case '-':
-                    case '.':
-                    case ',':
-                        $ret .= $item;
-                        break;
-                    case 'l':
-                        $ret .= self::$lang['DATE_SHORT'][date('w', $time)];
-                        break;
-                    case 'L':
-                        $ret .= self::$lang['DATE_LONG'][date('w', $time)];
-                        break;
-                    case 'M':
-                        $ret .= self::$lang['MONTH_SHORT'][date('n', $time)];
-                        break;
-                    case 'F':
-                        $ret .= self::$lang['MONTH_LONG'][date('n', $time)];
-                        break;
-                    case 'Y':
-                        $ret .= (int) date('Y', $time) + (int) self::$lang['YEAR_OFFSET'];
-                        break;
-                    default:
-                        $ret .= trim($item) == '' ? ' ' : date($item, $time);
-                        break;
+                case ' ':
+                case ':':
+                case '/':
+                case '-':
+                case '.':
+                case ',':
+                    $ret .= $item;
+                    break;
+                case 'l':
+                    $ret .= self::$lang['DATE_SHORT'][date('w', $time)];
+                    break;
+                case 'L':
+                    $ret .= self::$lang['DATE_LONG'][date('w', $time)];
+                    break;
+                case 'M':
+                    $ret .= self::$lang['MONTH_SHORT'][date('n', $time)];
+                    break;
+                case 'F':
+                    $ret .= self::$lang['MONTH_LONG'][date('n', $time)];
+                    break;
+                case 'Y':
+                    $ret .= (int) date('Y', $time) + (int) self::$lang['YEAR_OFFSET'];
+                    break;
+                default:
+                    $ret .= trim($item) == '' ? ' ' : date($item, $time);
+                    break;
                 }
             }
         } else {

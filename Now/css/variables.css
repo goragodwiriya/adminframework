@@ -95,14 +95,14 @@
   --highlight-bg: var(--color-primary);
   --highlight-text: var(--color-primary-text);
   /* Border Properties */
-  --field-border-radius: 5px;
+  --field-border-radius: var(--border-radius);
   --field-border-width: 1px;
-  --button-border-radius: 5px;
+  --button-border-radius: var(--border-radius);
   --button-border-width: 1px;
-  --card-border-radius: 8px;
+  --card-border-radius: var(--border-radius-lg);
   /* Typography */
-  --font-family-base: Sarabun, Tahoma, Loma, Arial, Helvetica, sans-serif;
-  --font-family-heading: Sarabun, Tahoma, Loma, Arial, Helvetica, sans-serif;
+  --font-family-base: 'Noto Sans Thai', 'Prompt', 'Saraban', Tahoma, Loma, Arial, Helvetica, sans-serif;
+  --font-family-heading: var(--font-family-base);
   --font-family-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   /* 12px */
   --font-size-xs: 0.75rem;
@@ -124,13 +124,16 @@
   --font-size-5xl: 3rem;
   --line-height-none: 1;
   --line-height-tight: 1.25;
+  --line-height-snug: 1.375;
   --line-height-base: 1.5;
-  --line-height-loose: 1.75;
+  --line-height-relaxed: 1.625;
+  --line-height-loose: 2;
   --font-weight-light: 300;
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
+  --font-weight-heading: 600;
   /* Borders */
   --border-radius-sm: 0.125rem;
   --border-radius: 0.25rem;
@@ -168,6 +171,25 @@
   --space-24: calc(var(--space-unit) * 24);
   /* 128px */
   --space-32: calc(var(--space-unit) * 32);
+  /* Between-element flow gaps */
+  /* h → p */
+  --gap-heading-after: var(--space-3);
+  /* p → h */
+  --gap-heading-before: var(--space-12);
+  /* p → p */
+  --gap-para: var(--space-6);
+  /* list block */
+  --gap-list: var(--space-6);
+  /* li → li */
+  --gap-list-item: var(--space-2);
+  /* quote block */
+  --gap-blockquote: var(--space-8);
+  /* image block */
+  --gap-figure: var(--space-8);
+  /* code block */
+  --gap-code: var(--space-6);
+  /* divider */
+  --gap-hr: var(--space-12);
   /* Z-index stack */
   --z-index-sticky: 988;
   --z-index-fixed: 989;
@@ -190,7 +212,7 @@
   --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
   --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
   /* Animation and Transitions */
-  --transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  --transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter;
   --transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   --transition-duration: 150ms;
   --transition-speed: 0.3s;
@@ -199,7 +221,7 @@
   --menu-animation: 0.3s ease;
   /* Notifications */
   --notification-bg: var(--color-background);
-  --notification-text: #1e293b;
+  --notification-text: var(--color-text);
   --notification-border: rgba(0, 0, 0, 0.1);
   --notification-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   --notification-success-bg: var(--color-success-light);
@@ -215,8 +237,8 @@
   --notification-info-text: var(--color-info);
   --notification-info-border: var(--color-info-hover);
   /* Dialog/Modal */
-  --dialog-bg: #ffffff;
-  --dialog-text: #1e293b;
+  --dialog-bg: var(--color-background);
+  --dialog-text: var(--color-text);
   --dialog-border: rgba(0, 0, 0, 0.1);
   --dialog-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   --dialog-overlay: rgba(0, 0, 0, 0.4);
@@ -252,7 +274,7 @@
   --input-disabled-bg: var(--color-surface);
   --input-disabled-text: var(--color-text-muted);
   /* Card Elements */
-  --card-bg: var(--color-background);
+  --card-bg: rgba(255, 255, 255, 0.8);
   --card-border: var(--color-border);
   --card-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
   /* Menu */
@@ -278,7 +300,7 @@
   --tabs-button-gap: 0.5rem;
   --tabs-panel-padding: 1.5rem;
   --tabs-border-width: 2px;
-  --tabs-border-radius: 0.5rem;
+  --tabs-border-radius: 0.5rem 0.5rem 0 0;
   /* Animation */
   --tabs-transition-duration: 300ms;
   --tabs-transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
@@ -286,4 +308,13 @@
   --track-bg: var(--color-surface);
   --knob-bg: var(--color-primary-text);
   --track-checked-bg: var(--color-primary);
+}
+/* ─── Responsive overrides ──────────────────── */
+@media (max-width: 640px) {
+  :root {
+    --gap-heading-before: var(--space-8);
+    --gap-para: var(--space-4);
+    --gap-figure: var(--space-6);
+    --gap-hr: var(--space-8);
+  }
 }

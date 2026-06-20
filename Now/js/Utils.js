@@ -666,11 +666,17 @@ const Utils = {
   },
 
   object: {
+    // Prototype-pollution guard for merge/clone/set operations.
+    isUnsafeKey(key) {
+      return key === '__proto__' || key === 'constructor' || key === 'prototype';
+    },
+
     deepClone(obj) {
       if (obj === null || typeof obj !== 'object') return obj;
       if (Array.isArray(obj)) return obj.map(item => this.deepClone(item));
       const clone = {};
       for (let key in obj) {
+        if (this.isUnsafeKey(key) || !Object.prototype.hasOwnProperty.call(obj, key)) continue;
         clone[key] = this.deepClone(obj[key]);
       }
       return clone;
@@ -682,6 +688,7 @@ const Utils = {
 
       if (this.isObject(target) && this.isObject(source)) {
         for (const key in source) {
+          if (this.isUnsafeKey(key) || !Object.prototype.hasOwnProperty.call(source, key)) continue;
           if (this.isObject(source[key])) {
             if (!target[key]) Object.assign(target, {[key]: {}});
             this.merge(target[key], source[key]);

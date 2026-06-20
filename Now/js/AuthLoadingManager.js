@@ -377,7 +377,6 @@ const AuthLoadingManager = {
       align-items: center;
       justify-content: center;
       z-index: 10000;
-      backdrop-filter: blur(2px);
     `;
 
     const content = overlay.querySelector('.loading-content');

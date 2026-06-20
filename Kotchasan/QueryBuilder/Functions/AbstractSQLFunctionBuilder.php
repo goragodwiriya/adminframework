@@ -12,6 +12,31 @@ namespace Kotchasan\QueryBuilder\Functions;
 abstract class AbstractSQLFunctionBuilder implements SQLFunctionBuilderInterface
 {
     /**
+     * Escapes a value that is interpolated into a single-quoted SQL string
+     * literal. SQL-standard escaping doubles the single quote (' -> '').
+     * Use this for every user-influenceable value placed inside '...'.
+     *
+     * @param mixed $value
+     * @return string
+     */
+    protected function escapeStringLiteral($value): string
+    {
+        return str_replace("'", "''", (string) $value);
+    }
+
+    /**
+     * Sanitizes a JSON path so it can only contain safe path characters,
+     * preventing breakout from the surrounding string literal.
+     *
+     * @param string $path
+     * @return string
+     */
+    protected function escapeJsonPath(string $path): string
+    {
+        return preg_replace('/[^A-Za-z0-9_$.\[\]*]/', '', $path);
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function count(string $column = '*'): string

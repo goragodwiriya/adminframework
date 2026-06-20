@@ -478,6 +478,10 @@ const StateManager = {
 
   set(path, value) {
     const parts = path.split('.');
+    // Prototype-pollution guard: refuse paths that traverse/write dangerous keys.
+    if (parts.some(p => p === '__proto__' || p === 'constructor' || p === 'prototype')) {
+      return;
+    }
     const key = parts.pop();
     const target = parts.length ?
       parts.reduce((obj, key) => obj[key], this.state) :

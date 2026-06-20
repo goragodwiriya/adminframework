@@ -252,6 +252,34 @@ class SQLiteDriver implements DriverInterface
     }
 
     /**
+     * Translate a MySQL DATE_FORMAT() format string to SQLite strftime() tokens.
+     * Single-pass (no re-translation): MySQL %i (minutes) -> %M, %s -> %S, etc.
+     *
+     * @param string $mysqlFormat
+     * @return string
+     */
+    protected function convertDateFormat(string $mysqlFormat): string
+    {
+        $map = [
+            '%Y' => '%Y', '%y' => '%Y', '%m' => '%m', '%d' => '%d',
+            '%H' => '%H', '%k' => '%H', '%h' => '%H', '%I' => '%H',
+            '%i' => '%M', '%s' => '%S', '%S' => '%S', '%M' => '%m',
+            '%j' => '%j', '%w' => '%w', '%W' => '%w', '%%' => '%',
+        ];
+        $out = '';
+        $len = strlen($mysqlFormat);
+        for ($i = 0; $i < $len; $i++) {
+            if ($mysqlFormat[$i] === '%' && $i + 1 < $len && isset($map['%'.$mysqlFormat[$i + 1]])) {
+                $out .= $map['%'.$mysqlFormat[$i + 1]];
+                $i++;
+            } else {
+                $out .= $mysqlFormat[$i];
+            }
+        }
+        return $out;
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function formatSqlFunction(string $type, array $parameters, ?string $alias): string
@@ -281,16 +309,21 @@ class SQLiteDriver implements DriverInterface
                 return 'DATE('.$this->quoteIdentifier($parameters['column']).')'.$aliasStr;
 
             case 'NOW':
-                return 'DATETIME()'.$aliasStr;
+                // DATETIME() with no arg is invalid in SQLite; use local time to
+                // match MySQL NOW() (server-local rather than UTC).
+                return "DATETIME('now', 'localtime')".$aliasStr;
 
             case 'RAND':
-                return 'RANDOM()'.$aliasStr;
+                // MySQL RAND() returns a float in [0,1); SQLite RANDOM() returns a
+                // signed 64-bit int. Normalize to [0,1).
+                return '(ABS(RANDOM()) / 9223372036854775807.0)'.$aliasStr;
 
             case 'CONCAT':
                 $fields = array_map([$this, 'formatFieldOrValue'], $parameters['fields']);
                 if (!empty($parameters['separator'])) {
                     // SQLite doesn't have CONCAT_WS, simulate with || and separator
-                    return '('.implode(" || '".$parameters['separator']."' || ", $fields).')'.$aliasStr;
+                    $sep = str_replace("'", "''", $parameters['separator']);
+                    return '('.implode(" || '".$sep."' || ", $fields).')'.$aliasStr;
                 }
                 return '('.implode(' || ', $fields).')'.$aliasStr;
 
@@ -298,9 +331,15 @@ class SQLiteDriver implements DriverInterface
                 $distinct = !empty($parameters['distinct']) ? 'DISTINCT ' : '';
                 $fields = array_map([$this, 'formatFieldOrValue'], $parameters['fields']);
                 $concatFields = implode(' || ', $fields);
-                $separator = $parameters['separator'] ?? ',';
+                $separator = str_replace("'", "''", $parameters['separator'] ?? ',');
 
-                return 'GROUP_CONCAT('.$distinct.$concatFields.", '".$separator."')".$aliasStr;
+                // SQLite does NOT allow a custom separator together with DISTINCT
+                // (GROUP_CONCAT(DISTINCT x, sep) is a syntax error). With DISTINCT
+                // we must fall back to the default ',' separator.
+                if ($distinct !== '') {
+                    return 'GROUP_CONCAT(DISTINCT '.$concatFields.')'.$aliasStr;
+                }
+                return 'GROUP_CONCAT('.$concatFields.", '".$separator."')".$aliasStr;
 
             case 'COUNT':
                 $distinct = !empty($parameters['distinct']) ? 'DISTINCT ' : '';
@@ -328,13 +367,20 @@ class SQLiteDriver implements DriverInterface
                 return 'IFNULL('.$this->quoteIdentifier($parameters['column1']).', '.$this->formatFieldOrValue($parameters['column2']).')'.$aliasStr;
 
             case 'DATEDIFF':
-                return '(JULIANDAY('.$this->formatFieldOrValue($parameters['column1']).') - JULIANDAY('.$this->formatFieldOrValue($parameters['column2']).'))'.$aliasStr;
+                // MySQL DATEDIFF returns an INTEGER number of days.
+                return '(CAST(JULIANDAY(DATE('.$this->formatFieldOrValue($parameters['column1']).')) - JULIANDAY(DATE('.$this->formatFieldOrValue($parameters['column2']).')) AS INTEGER))'.$aliasStr;
 
             case 'TIMEDIFF':
                 return '(STRFTIME(\'%s\', '.$this->formatFieldOrValue($parameters['column1']).') - STRFTIME(\'%s\', '.$this->formatFieldOrValue($parameters['column2']).'))'.$aliasStr;
 
             case 'TIMESTAMPDIFF':
-                return '(JULIANDAY('.$this->formatFieldOrValue($parameters['column2']).') - JULIANDAY('.$this->formatFieldOrValue($parameters['column1']).'))'.$aliasStr;
+                // Honor the unit (MySQL returns an integer count in that unit).
+                $unit = strtoupper((string) ($parameters['unit'] ?? 'DAY'));
+                $factor = ['SECOND' => 86400, 'MINUTE' => 1440, 'HOUR' => 24, 'DAY' => 1, 'WEEK' => 1 / 7, 'MONTH' => 1 / 30, 'YEAR' => 1 / 365];
+                $f = $factor[$unit] ?? 1;
+                // ROUND before CAST: JULIANDAY float arithmetic makes an exact
+                // 60s diff come out as 59.9999.. which would truncate to 59.
+                return '(CAST(ROUND((JULIANDAY('.$this->formatFieldOrValue($parameters['column2']).') - JULIANDAY('.$this->formatFieldOrValue($parameters['column1']).')) * '.$f.') AS INTEGER))'.$aliasStr;
 
             case 'DATE_ADD':{
                     $unitMap = ['WEEK' => ['days', 7], 'YEAR' => ['years', 1], 'MONTH' => ['months', 1],
@@ -378,6 +424,8 @@ class SQLiteDriver implements DriverInterface
                 }
 
             case 'STR_TO_DATE':
+                // SQLite cannot parse arbitrary formats; DATETIME() handles ISO
+                // input. Non-ISO input yields NULL (documented limitation).
                 return 'DATETIME('.$this->formatFieldOrValue($parameters['value']).')'.$aliasStr;
 
             case 'TIME':
@@ -387,7 +435,8 @@ class SQLiteDriver implements DriverInterface
                 return "CAST(strftime('%W', ".$this->quoteIdentifier($parameters['column']).') AS INTEGER)'.$aliasStr;
 
             case 'DATE_FORMAT':
-                return "strftime('".$parameters['format']."', ".$this->quoteIdentifier($parameters['column']).')'.$aliasStr;
+                $fmt = str_replace("'", "''", $this->convertDateFormat((string) $parameters['format']));
+                return "strftime('".$fmt."', ".$this->quoteIdentifier($parameters['column']).')'.$aliasStr;
 
             case 'LENGTH':
                 return 'LENGTH('.$this->quoteIdentifier($parameters['column']).')'.$aliasStr;
@@ -448,10 +497,14 @@ class SQLiteDriver implements DriverInterface
                 return 'ABS('.$this->quoteIdentifier($parameters['column']).')'.$aliasStr;
 
             case 'CEIL':
-                return 'CEIL('.$this->quoteIdentifier($parameters['column']).')'.$aliasStr;
+                // SQLite has no CEIL without the math extension — emulate.
+                $c = $this->quoteIdentifier($parameters['column']);
+                return '(CASE WHEN '.$c.' = CAST('.$c.' AS INTEGER) THEN CAST('.$c.' AS INTEGER) WHEN '.$c.' > 0 THEN CAST('.$c.' AS INTEGER) + 1 ELSE CAST('.$c.' AS INTEGER) END)'.$aliasStr;
 
             case 'FLOOR':
-                return 'FLOOR('.$this->quoteIdentifier($parameters['column']).')'.$aliasStr;
+                // SQLite has no FLOOR without the math extension — emulate.
+                $c = $this->quoteIdentifier($parameters['column']);
+                return '(CASE WHEN '.$c.' = CAST('.$c.' AS INTEGER) THEN CAST('.$c.' AS INTEGER) WHEN '.$c.' >= 0 THEN CAST('.$c.' AS INTEGER) ELSE CAST('.$c.' AS INTEGER) - 1 END)'.$aliasStr;
 
             case 'ROUND':
                 $precision = $parameters['precision'] ?? null;

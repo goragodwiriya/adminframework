@@ -522,7 +522,7 @@ class Controller extends ApiController
             }
         } catch (\Kotchasan\ApiException $e) {
             // Keep original HTTP code (e.g. 403 CSRF, 405 method)
-            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400);
+            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400, $e);
         }
         // Error save settings
         return $this->errorResponse('Failed to save settings', 500);
@@ -864,7 +864,7 @@ class Controller extends ApiController
 
             return $this->successResponse([], 'Test email sent to '.$toEmail);
         } catch (\Kotchasan\ApiException $e) {
-            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400);
+            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400, $e);
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to send test: '.$e->getMessage(), 500);
         }
@@ -901,7 +901,7 @@ class Controller extends ApiController
 
             return $this->successResponse([], 'Test Telegram success');
         } catch (\Kotchasan\ApiException $e) {
-            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400);
+            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400, $e);
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to send test: '.$e->getMessage(), 500);
         }
@@ -938,7 +938,7 @@ class Controller extends ApiController
 
             return $this->telegramWebhookResponse($result, 'Telegram webhook configured');
         } catch (\Kotchasan\ApiException $e) {
-            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400);
+            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400, $e);
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to set Telegram webhook: '.$e->getMessage(), 500);
         }
@@ -972,7 +972,7 @@ class Controller extends ApiController
 
             return $this->telegramWebhookResponse($result, 'Telegram webhook removed');
         } catch (\Kotchasan\ApiException $e) {
-            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400);
+            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400, $e);
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to delete Telegram webhook: '.$e->getMessage(), 500);
         }
@@ -1011,7 +1011,7 @@ class Controller extends ApiController
      */
     private function getAiData()
     {
-        $settings = new \Gcms\Chat\SettingsRepository();
+        $settings = new \Gcms\Ai\SettingsRepository();
         $connector = $settings->connector();
         $activeProvider = $connector['ai_provider'] ?? (self::$cfg->ai_provider ?? 'openai');
         $editProvider = $activeProvider;
@@ -1028,9 +1028,54 @@ class Controller extends ApiController
             'ai_custom_model' => $connection['custom_model'] ?? '',
             'ai_max_tokens' => $connection['max_tokens'] ?? 1024,
             'ai_temperature' => $connection['temperature'] ?? 0.7,
+            'ai_thinking_enabled' => !empty($connection['thinking_enabled']) ? 1 : 0,
+            'ai_reasoning_effort' => $connection['reasoning_effort'] ?? 'high',
+            'ai_chat_workflow_value' => max(1, min(10080, (int) (self::$cfg->ai_chat_workflow_value ?? 60))),
             'ai_connections' => $connections,
             'ai_provider_defaults' => \Gcms\Ai::providerDefaults()
         ];
+    }
+
+    /**
+     * Get AI chat content management data.
+     *
+     * @return array
+     */
+    private function getAiChatData()
+    {
+        $settings = new \Gcms\Ai\SettingsRepository();
+        $messages = $settings->messages();
+        $workflow = $settings->workflow();
+
+        return [
+            'ai_message_templates' => $this->aiMessageTemplates($messages),
+            'ai_workflow_settings' => $workflow['sla_minutes'],
+            'ai_quick_answers' => (new \Gcms\Chat\QuickAnswerRepository())->all(false)
+        ];
+    }
+
+    /**
+     * AI chat content management endpoint (GET).
+     *
+     * @param Request $request
+     *
+     * @return mixed
+     */
+    public function aiChat(Request $request)
+    {
+        ApiController::validateMethod($request, 'GET');
+
+        $login = $this->authenticateRequest($request);
+        if (!$login) {
+            return $this->errorResponse('Unauthorized', 401);
+        }
+        if (!ApiController::canModify($login, ['can_use_ai_chat'])) {
+            return $this->errorResponse('Forbidden', 403);
+        }
+
+        return $this->successResponse([
+            'data' => (object) $this->getAiChatData()
+        ], 'AI chat content loaded');
     }
 
     /**
@@ -1063,6 +1108,7 @@ class Controller extends ApiController
         $ret = [];
         $config->ai_enabled = isset($body['ai_enabled']) ? $this->toBoolean($body, 'ai_enabled') : 0;
         $config->ai_provider = $this->normalizeAiProvider($body['ai_provider'] ?? 'openai');
+        $config->ai_chat_workflow_value = max(1, min(10080, (int) ($body['ai_chat_workflow_value'] ?? $body['value'] ?? 60)));
         $editProvider = $this->normalizeAiProvider($body['ai_edit_provider'] ?? $config->ai_provider);
         $defaults = \Gcms\Ai::providerDefaults($editProvider);
         if (empty($defaults)) {
@@ -1087,6 +1133,202 @@ class Controller extends ApiController
         $this->syncLegacyAiConfig($config, $config->ai_provider, $activeConnection);
 
         return $ret;
+    }
+
+    /**
+     * Save AI chat content settings.
+     *
+     * @param array  $body
+     * @param object $config
+     *
+     * @return array
+     */
+    private function parseAiChatSettings($body, $config)
+    {
+        $ret = [];
+        $messages = $this->parseAiMessageTemplates($body['ai_message_templates_json'] ?? '[]', $ret);
+        $workflow = $this->parseAiWorkflowSettings($body['ai_workflow_json'] ?? '[]', $ret);
+        $quickAnswers = $this->parseAiQuickAnswers($body['ai_quick_answers_json'] ?? '[]', $ret);
+        if (!empty($ret)) {
+            return $ret;
+        }
+
+        $settings = new \Gcms\Ai\SettingsRepository();
+        $saved = $settings->saveMessages($messages)
+        && $settings->saveWorkflow($workflow)
+        && (new \Gcms\Chat\QuickAnswerRepository())->saveMany($quickAnswers);
+        if (!$saved) {
+            $ret['ai_message_templates_json'] = 'Unable to persist AI chat content';
+        }
+
+        return $ret;
+    }
+
+    /**
+     * Parse message-template rows from admin form input.
+     *
+     * @param mixed $json
+     * @param array $errors
+     *
+     * @return array
+     */
+    private function parseAiMessageTemplates($json, array &$errors)
+    {
+        $decoded = json_decode((string) $json, true);
+        if (!is_array($decoded)) {
+            if (trim((string) $json) !== '') {
+                $errors['ai_message_templates_json'] = 'Invalid message-template data';
+            }
+
+            return [];
+        }
+
+        $allowedKeys = array_column($this->aiMessageTemplates([]), 'key');
+        $allowedKeys = array_flip($allowedKeys);
+        $messages = [];
+        foreach ($decoded as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $key = trim((string) ($item['key'] ?? ''));
+            if ($key === '' || !isset($allowedKeys[$key])) {
+                continue;
+            }
+            $messages[$key] = trim(str_replace(["\r\n", "\r"], "\n", (string) ($item['value'] ?? '')));
+        }
+
+        return $messages;
+    }
+
+    /**
+     * Parse workflow rows from admin form input.
+     *
+     * @param mixed $json
+     * @param array $errors
+     *
+     * @return array
+     */
+    private function parseAiWorkflowSettings($json, array &$errors)
+    {
+        $decoded = json_decode((string) $json, true);
+        if (!is_array($decoded)) {
+            if (trim((string) $json) !== '') {
+                $errors['ai_workflow_json'] = 'Invalid workflow data';
+            }
+
+            return ['sla_minutes' => 60];
+        }
+
+        $workflow = ['sla_minutes' => 60];
+        foreach ($decoded as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $key = trim((string) ($item['key'] ?? ''));
+            if ($key !== 'sla_minutes') {
+                continue;
+            }
+            $workflow['sla_minutes'] = max(1, min(10080, (int) ($item['value'] ?? 60)));
+        }
+
+        return $workflow;
+    }
+
+    /**
+     * Normalize AI chat message-template rows for admin UI.
+     *
+     * @param array $messages
+     *
+     * @return array
+     */
+    private function aiMessageTemplates(array $messages)
+    {
+        $definitions = [
+            ['key' => 'starter_message', 'label' => 'Starter Message', 'description' => 'Initial message shown in the web chat widget before the first user message.'],
+            ['key' => 'welcome_message', 'label' => 'Greeting Reply', 'description' => 'Reply used when the user starts with a greeting.'],
+            ['key' => 'capability_message', 'label' => 'Capabilities Reply', 'description' => 'Reply used when the user asks what the AI chat can do.'],
+            ['key' => 'escalation_created_message', 'label' => 'Handoff Created Reply', 'description' => 'Reply sent after a staff handoff is created. Supports placeholders :id, :channel, :requester, :message.'],
+            ['key' => 'handoff_accepted_message', 'label' => 'Handoff Accepted Reply', 'description' => 'Reply sent to the requester when staff accepts a handoff. Supports placeholders :id, :requester.'],
+            ['key' => 'handoff_closed_message', 'label' => 'Handoff Closed Reply', 'description' => 'Reply sent to the requester when staff closes a handoff.'],
+            ['key' => 'fallback_help_message', 'label' => 'Fallback Help Reply', 'description' => 'Shown when AI fallback cannot answer or when a tool is not connected.'],
+            ['key' => 'ai_disabled_message', 'label' => 'AI Disabled Reply', 'description' => 'Shown when the AI connector is disabled.'],
+            ['key' => 'ai_unavailable_message', 'label' => 'AI Unavailable Reply', 'description' => 'Shown when the AI provider request fails.'],
+            ['key' => 'ai_empty_response_message', 'label' => 'AI Empty Response Reply', 'description' => 'Shown when the AI provider returns no usable answer.']
+        ];
+
+        foreach ($definitions as $index => $item) {
+            $definitions[$index]['value'] = (string) ($messages[$item['key']] ?? '');
+        }
+
+        return $definitions;
+    }
+
+    /**
+     * Normalize AI workflow rows for admin UI.
+     *
+     * @param array $workflow
+     *
+     * @return array
+     */
+    private function aiWorkflowSettings(array $workflow)
+    {
+        return [
+            [
+                'key' => 'sla_minutes',
+                'label' => 'Handoff SLA Minutes',
+                'description' => 'Open handoffs older than this limit are marked as overdue in the inbox.',
+                'value' => max(1, min(10080, (int) ($workflow['sla_minutes'] ?? 60)))
+            ]
+        ];
+    }
+
+    /**
+     * Parse quick-answer rows from the admin form.
+     *
+     * @param mixed $json
+     * @param array $errors
+     *
+     * @return array
+     */
+    private function parseAiQuickAnswers($json, array &$errors)
+    {
+        $decoded = json_decode((string) $json, true);
+        if (!is_array($decoded)) {
+            if (trim((string) $json) !== '') {
+                $errors['ai_quick_answers_json'] = 'Invalid quick-answer data';
+            }
+
+            return [];
+        }
+
+        $items = [];
+        foreach ($decoded as $index => $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $title = trim((string) ($item['title'] ?? ''));
+            $keywords = trim((string) ($item['keywords'] ?? ''));
+            $answerText = trim(str_replace(["\r\n", "\r"], "\n", (string) ($item['answer_text'] ?? '')));
+            if ($title === '' && $keywords === '' && $answerText === '') {
+                continue;
+            }
+            if ($keywords === '' || $answerText === '') {
+                $errors['ai_quick_answers_json'] = 'Each quick answer requires keywords and an answer';
+
+                return [];
+            }
+
+            $items[] = [
+                'title' => $title,
+                'keywords' => $keywords,
+                'match_mode' => !empty($item['match_mode']) && $item['match_mode'] === 'exact' ? 'exact' : 'contains',
+                'answer_text' => $answerText,
+                'sort_order' => isset($item['sort_order']) && $item['sort_order'] !== '' ? (int) $item['sort_order'] : $index + 1,
+                'published' => !empty($item['published']) ? 1 : 0
+            ];
+        }
+
+        return $items;
     }
 
     /**
@@ -1129,6 +1371,10 @@ class Controller extends ApiController
             ];
             $config['max_tokens'] = 64;
             $config['temperature'] = 0.0;
+            if ($provider === 'deepseek') {
+                $config['thinking_enabled'] = !empty($connection['thinking_enabled']);
+                $config['reasoning_effort'] = $connection['reasoning_effort'] ?? 'high';
+            }
 
             $driver = \Gcms\Ai::driver($provider, $config);
             $response = $driver->chat([['role' => 'user', 'content' => 'Reply with the single word: OK']]);
@@ -1140,13 +1386,13 @@ class Controller extends ApiController
                     'AI connection test successful'
                 );
             }
-            return $this->errorResponse('AI test failed: '.$response->error, 502);
+            return $this->errorResponse('AI test failed: '.$response->error, 502, $e);
         } catch (\InvalidArgumentException $e) {
             return $this->errorResponse($e->getMessage(), 400);
         } catch (\Kotchasan\ApiException $e) {
-            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400);
+            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400, $e);
         } catch (\Exception $e) {
-            return $this->errorResponse('AI test failed: '.$e->getMessage(), 500);
+            return $this->errorResponse('AI test failed: '.$e->getMessage(), 500, $e);
         }
     }
 
@@ -1229,7 +1475,7 @@ class Controller extends ApiController
         } catch (\InvalidArgumentException $e) {
             return $this->errorResponse($e->getMessage(), 400);
         } catch (\Kotchasan\ApiException $e) {
-            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400);
+            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400, $e);
         } catch (\Exception $e) {
             return $this->errorResponse('Theme suggestion failed: '.$e->getMessage(), 500);
         }
@@ -1616,6 +1862,22 @@ class Controller extends ApiController
             $useCustomModel = 0;
         }
 
+        $resolved = null;
+        if ($provider === 'deepseek' && empty($errors)) {
+            $candidate = $useCustomModel ? $customModel : $model;
+            $thinkingHint = isset($body['ai_thinking_enabled']) ? $this->toBoolean($body, 'ai_thinking_enabled') : 0;
+            $resolved = \Gcms\Ai\Drivers\DeepSeek::resolveModel($candidate, $thinkingHint);
+            if (in_array($resolved['model'], $models, true)) {
+                $model = $resolved['model'];
+                $customModel = '';
+                $useCustomModel = 0;
+            } elseif ($useCustomModel) {
+                $customModel = $resolved['model'];
+            } else {
+                $model = $resolved['model'];
+            }
+        }
+
         $apiUrl = trim((string) ($body['ai_api_url'] ?? ''));
         $apiUrl = $apiUrl !== '' ? \Kotchasan\Text::url($apiUrl) : '';
         if (!empty($defaults['default_api_url']) && $apiUrl === $defaults['default_api_url']) {
@@ -1629,7 +1891,13 @@ class Controller extends ApiController
             'custom_model' => $customModel,
             'use_custom_model' => $useCustomModel,
             'max_tokens' => max(1, (int) ($body['ai_max_tokens'] ?? 1024)),
-            'temperature' => min(2.0, max(0.0, (float) ($body['ai_temperature'] ?? 0.7)))
+            'temperature' => min(2.0, max(0.0, (float) ($body['ai_temperature'] ?? 0.7))),
+            'thinking_enabled' => $provider === 'deepseek'
+                ? (($this->toBoolean($body, 'ai_thinking_enabled') || ($resolved && !empty($resolved['thinking']))) ? 1 : 0)
+                : 0,
+            'reasoning_effort' => $provider === 'deepseek'
+                ? \Gcms\Ai\Drivers\DeepSeek::normalizeEffort($body['ai_reasoning_effort'] ?? 'high')
+                : 'high'
         ];
     }
 
@@ -1664,7 +1932,7 @@ class Controller extends ApiController
         $dir = ROOT_PATH.DATA_FOLDER.'images/';
         // อัปโหลดไฟล์
         foreach ($request->getUploadedFiles() as $item => $file) {
-            if (in_array($item, ['logo', 'bg_image', 'company_logo', 'company_stamp'])) {
+            if (in_array($item, ['logo', 'bg_image', 'company_logo', 'company_stamp', 'site_logo', 'pwa_icon', 'screenshot'])) {
                 if (!File::makeDirectory($dir)) {
                     // The directory cannot be created.
                     $errors[$item] = Language::replace('Directory %s cannot be created or is read-only.', DATA_FOLDER.'images/');
@@ -1696,7 +1964,7 @@ class Controller extends ApiController
     {
         try {
             // Whitelist allowed image types to prevent path traversal
-            $allowedItems = ['logo', 'bg_image', 'company_logo', 'company_stamp'];
+            $allowedItems = ['logo', 'bg_image', 'company_logo', 'company_stamp', 'site_logo', 'pwa_icon', 'screenshot'];
             if (!in_array($item, $allowedItems, true)) {
                 return $this->errorResponse('Invalid image type', 400);
             }
@@ -1731,9 +1999,9 @@ class Controller extends ApiController
             // File doesn't exist, still success (idempotent)
             return $this->redirectResponse('reload', ucfirst(str_replace('_', ' ', $item)).' already removed', 200, 1000);
         } catch (\Kotchasan\ApiException $e) {
-            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400);
+            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400, $e);
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to remove image: '.$e->getMessage(), 500);
+            return $this->errorResponse('Failed to remove image: '.$e->getMessage(), 500, $e);
         }
     }
 }

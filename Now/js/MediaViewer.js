@@ -457,11 +457,17 @@ class MediaViewer {
     const htmlContainer = document.createElement('div');
     htmlContainer.className = 'media-item media-html';
 
-    // Sanitize HTML if SecurityManager is available
-    if (window.SecurityManager && SecurityManager.sanitize) {
-      htmlContainer.innerHTML = SecurityManager.sanitize(item.content || item.html || '');
+    // Always sanitize before injecting — media items can originate from server
+    // responses. Prefer the central SecurityManager; fall back to TemplateManager.
+    const raw = item.content || item.html || '';
+    if (window.SecurityManager && typeof SecurityManager.sanitizeHtml === 'function') {
+      htmlContainer.innerHTML = SecurityManager.sanitizeHtml(raw);
+    } else if (window.TemplateManager && typeof TemplateManager.sanitizeElement === 'function') {
+      const out = TemplateManager.sanitizeElement(String(raw));
+      htmlContainer.innerHTML = typeof out === 'string' ? out : '';
     } else {
-      htmlContainer.innerHTML = item.content || item.html || '';
+      // No sanitizer available — render inert text rather than raw HTML.
+      htmlContainer.textContent = String(raw);
     }
 
     this.stage.appendChild(htmlContainer);

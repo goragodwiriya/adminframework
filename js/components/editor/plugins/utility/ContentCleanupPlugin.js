@@ -10,7 +10,7 @@ import EventBus from '../../core/EventBus.js';
 import {cleanupHtmlFragment, DEFAULT_CLASS_PREFIXES, DEFAULT_TABLE_ATTRIBUTE_ALLOW_MAP} from '../../core/HtmlCleanup.js';
 
 class CleanupDialog extends BaseDialog {
-    constructor (editor, plugin) {
+    constructor(editor, plugin) {
         super(editor, {
             title: 'Clean HTML',
             width: 560
@@ -124,7 +124,10 @@ class ContentCleanupPlugin extends PluginBase {
         'left', 'center', 'right', 'justify',
         'top', 'bottom', 'middle', 'baseline',
         'float-left', 'float-right', 'float-center',
-        'block', 'inline', 'inline-block', 'flex', 'grid'
+        'block', 'inline', 'inline-block', 'flex', 'grid',
+        'text-left', 'text-center', 'text-right', 'text-justify',
+        'mx-auto', 'center-block',
+        'tablebody', 'table', 'border', 'data', 'fullwidth'
     ];
 
     init() {

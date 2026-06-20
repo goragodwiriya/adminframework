@@ -57,13 +57,19 @@ class Menu
             $c = ' class="'.implode(' ', $c).'"';
         }
         if (!empty($item['url'])) {
-            $a = ['href="'.$item['url'].'"'];
+            // Reject dangerous URL schemes (javascript:, data:, vbscript:) and
+            // HTML-encode the href to prevent attribute-context XSS.
+            $url = (string) $item['url'];
+            if (preg_match('/^\s*(javascript|data|vbscript)\s*:/i', $url)) {
+                $url = '#';
+            }
+            $a = ['href="'.htmlspecialchars($url, ENT_QUOTES, 'UTF-8').'"'];
             if (!empty($item['target'])) {
-                $a[] = 'target="'.$item['target'].'"';
+                $a[] = 'target="'.htmlspecialchars((string) $item['target'], ENT_QUOTES, 'UTF-8').'"';
             }
         }
         if (!empty($item['text'])) {
-            $a[] = 'title="'.$item['text'].'"';
+            $a[] = 'title="'.htmlspecialchars((string) $item['text'], ENT_QUOTES, 'UTF-8').'"';
         }
         if ($arrow) {
             $a[] = 'class=menu-arrow';

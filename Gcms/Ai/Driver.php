@@ -184,20 +184,84 @@ abstract class Driver extends \Kotchasan\KBase
      */
     protected function post($url, array $payload, array $headers)
     {
+        // SSRF guard: only http/https, and never the cloud-metadata range.
+        $urlError = self::validateRequestUrl($url);
+        if ($urlError !== null) {
+            return ['error' => $urlError];
+        }
+
         $ch = new \Kotchasan\Curl();
-        $ch->setOptions([CURLOPT_TIMEOUT => 60]);
+        $ch->setOptions([
+            CURLOPT_TIMEOUT => 60,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            // Do not follow redirects — prevents a permitted host from 30x-ing
+            // the request (carrying the API key) into an internal target.
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        // Allow self-signed certs ONLY for loopback (local Ollama/LM Studio).
+        if (self::isLoopbackHost($url)) {
+            $ch->disableSslVerify();
+        }
         $ch->setHeaders(array_merge([
             'Content-Type' => 'application/json',
             'Accept' => 'application/json'
         ], $headers));
         $body = $ch->post($url, json_encode($payload));
         if ($ch->error() !== 0) {
-            return ['error' => $ch->errorMessage()];
+            // Do not leak transport detail to callers; log server-side instead.
+            error_log('AI request transport error: '.$ch->errorMessage());
+            return ['error' => 'AI provider request failed'];
         }
         $decoded = json_decode($body, true);
         if (!is_array($decoded)) {
-            return ['error' => 'Invalid JSON response: '.substr($body, 0, 200)];
+            error_log('AI request non-JSON response: '.substr((string) $body, 0, 500));
+            $message = 'AI provider returned an invalid response';
+            if (self::isLoopbackHost($url) && preg_match('#/api(?:/|$)#i', (string) $url)) {
+                $message .= '. For Ollama, use http://localhost:11434/v1 (not /api)';
+            }
+            return ['error' => $message];
         }
         return $decoded;
+    }
+
+    /**
+     * Validate an outbound request URL (SSRF guard).
+     * Returns an error string if the URL is unsafe, or null if acceptable.
+     *
+     * @param string $url
+     * @return string|null
+     */
+    protected static function validateRequestUrl($url)
+    {
+        $parts = parse_url((string) $url);
+        if ($parts === false || empty($parts['scheme']) || empty($parts['host'])) {
+            return 'AI endpoint URL is invalid';
+        }
+        if (!in_array(strtolower($parts['scheme']), ['http', 'https'], true)) {
+            return 'AI endpoint scheme is not allowed';
+        }
+        $host = $parts['host'];
+        // Block the cloud-metadata / link-local range outright — never a valid
+        // AI endpoint, and the prime SSRF target.
+        $ip = filter_var($host, FILTER_VALIDATE_IP) ? $host : @gethostbyname($host);
+        if (is_string($ip) && (strpos($ip, '169.254.') === 0 || $ip === '0.0.0.0')) {
+            return 'AI endpoint host is not allowed';
+        }
+        return null;
+    }
+
+    /**
+     * @param string $url
+     * @return bool True if the URL host is loopback (localhost / 127.0.0.0/8 / ::1)
+     */
+    protected static function isLoopbackHost($url)
+    {
+        $host = strtolower((string) parse_url((string) $url, PHP_URL_HOST));
+        if ($host === 'localhost' || $host === '::1') {
+            return true;
+        }
+        return (bool) preg_match('/^127\./', $host);
     }
 }

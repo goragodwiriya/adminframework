@@ -67,6 +67,7 @@
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
+  border-radius: 0;
   cursor: pointer;
   color: var(--color-text-muted);
   transition: all var(--transition-duration, 0.2s);
@@ -153,6 +154,7 @@
 }
 .folder-tree-link {
   display: flex;
+  gap: 8px;
   align-items: center;
   padding: 8px 15px;
   padding-left: calc(15px + 15px * var(--level, 0));
@@ -463,6 +465,7 @@
 }
 .file-browser-buttons {
   display: flex;
+  gap: 8px;
 }
 .file-browser-button {
   padding: 8px 16px;

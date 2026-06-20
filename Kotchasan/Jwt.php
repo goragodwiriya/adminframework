@@ -38,6 +38,9 @@ class Jwt
      */
     public static function encode(array $payload, $secret, $algo = 'HS256')
     {
+        if ($secret === null || $secret === '') {
+            throw new \InvalidArgumentException('JWT secret must not be empty');
+        }
         $header = ['typ' => 'JWT', 'alg' => $algo];
         $segments = [];
         $segments[] = self::b64u_encode(json_encode($header));
@@ -61,6 +64,10 @@ class Jwt
         if (count($parts) != 3) {
             return null;
         }
+        // Reject empty secrets — an empty secret would make signatures forgeable.
+        if ($secret === null || $secret === '') {
+            return null;
+        }
         list($bh, $bp, $bs) = $parts;
         $header = json_decode(self::b64u_decode($bh), true);
         $payload = json_decode(self::b64u_decode($bp), true);
@@ -68,12 +75,24 @@ class Jwt
         if (empty($header) || empty($payload)) {
             return null;
         }
-        if (!in_array($header['alg'] ?? '', $allowedAlgos)) {
+        $alg = $header['alg'] ?? '';
+        // The algorithm MUST be in the server-controlled allow-list. This also
+        // rejects "none" and prevents algorithm-confusion attacks.
+        if (!in_array($alg, $allowedAlgos, true)) {
             return null;
         }
         $signingInput = $bh.'.'.$bp;
-        $expected = self::sign($signingInput, $secret, $header['alg']);
+        try {
+            $expected = self::sign($signingInput, $secret, $alg);
+        } catch (\InvalidArgumentException $e) {
+            // Unsupported algorithm — refuse rather than silently fall back.
+            return null;
+        }
         if (!hash_equals($expected, $sig)) {
+            return null;
+        }
+        // check nbf (not before)
+        if (isset($payload['nbf']) && time() < $payload['nbf']) {
             return null;
         }
         // check exp
@@ -93,8 +112,15 @@ class Jwt
     {
         switch ($algo) {
             case 'HS256':
-            default:
                 return hash_hmac('sha256', $data, $secret, true);
+            case 'HS384':
+                return hash_hmac('sha384', $data, $secret, true);
+            case 'HS512':
+                return hash_hmac('sha512', $data, $secret, true);
+            default:
+                // Refuse unknown/unsupported algorithms instead of silently
+                // HMAC-signing them (which would enable algorithm confusion).
+                throw new \InvalidArgumentException('Unsupported JWT algorithm: '.$algo);
         }
     }
 }

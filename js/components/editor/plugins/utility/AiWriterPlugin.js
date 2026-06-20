@@ -9,7 +9,7 @@ import BaseDialog from '../../ui/dialogs/BaseDialog.js';
 import EventBus from '../../core/EventBus.js';
 
 class AsyncDialog extends BaseDialog {
-    constructor (editor, options = {}) {
+    constructor(editor, options = {}) {
         super(editor, options);
         this.plugin = options.plugin;
     }
@@ -35,7 +35,7 @@ class AsyncDialog extends BaseDialog {
 }
 
 class GenerateDialog extends AsyncDialog {
-    constructor (editor, plugin) {
+    constructor(editor, plugin) {
         super(editor, {
             plugin,
             title: 'Generate content with AI',
@@ -120,7 +120,7 @@ class GenerateDialog extends AsyncDialog {
 }
 
 class RewriteDialog extends AsyncDialog {
-    constructor (editor, plugin) {
+    constructor(editor, plugin) {
         super(editor, {
             plugin,
             title: 'Rewrite with AI',
@@ -193,7 +193,7 @@ class RewriteDialog extends AsyncDialog {
 }
 
 class GenerateImageDialog extends AsyncDialog {
-    constructor (editor, plugin) {
+    constructor(editor, plugin) {
         super(editor, {
             plugin,
             title: 'Generate image with AI',
@@ -287,7 +287,9 @@ class AiWriterPlugin extends PluginBase {
         'left', 'center', 'right', 'justify',
         'top', 'bottom', 'middle', 'baseline',
         'float-left', 'float-right', 'float-center',
-        'block', 'inline', 'inline-block'
+        'block', 'inline', 'inline-block',
+        'text-left', 'text-center', 'text-right', 'text-justify',
+        'mx-auto', 'center-block'
     ];
 
     init() {
@@ -405,15 +407,23 @@ class AiWriterPlugin extends PluginBase {
             size: data.size
         });
 
-        const src = this.getGeneratedImageSource(response.images);
-        if (!src) {
-            throw new Error('AI response did not include an image.');
+        const imagePlugin = this.editor.getPlugin('image');
+        if (!imagePlugin?.uploadImageToFileBrowser || !imagePlugin?.insertImage) {
+            throw new Error('Image upload is not available in this editor configuration.');
         }
 
-        await this.insertGeneratedImage(src, {
+        const file = this.createGeneratedImageFile(response.images);
+        const url = await imagePlugin.uploadImageToFileBrowser(file);
+
+        await imagePlugin.insertImage({
+            src: url,
             alt: data.altText || data.prompt,
-            align: data.align
+            align: data.align,
+            file: null,
+            isEdit: false
         });
+
+        this.emit(EventBus.Events.CONTENT_CHANGE);
 
         this.notify(this.translate('Image generated'), 'success');
         return true;
@@ -546,47 +556,62 @@ class AiWriterPlugin extends PluginBase {
             : rawHtml;
     }
 
-    getGeneratedImageSource(images) {
+    createGeneratedImageFile(images) {
         if (!Array.isArray(images) || images.length === 0) {
-            return '';
+            throw new Error('AI response did not include an image.');
         }
 
-        const image = images[0];
-        if (image && typeof image.url === 'string' && image.url.trim() !== '') {
-            return image.url.trim();
-        }
-        if (image && typeof image.b64_json === 'string' && image.b64_json.trim() !== '') {
-            const mimeType = typeof image.mime_type === 'string' && image.mime_type.trim() !== ''
-                ? image.mime_type.trim()
-                : 'image/png';
-            return `data:${mimeType};base64,${image.b64_json.trim()}`;
+        const image = images[0] || {};
+        const base64 = typeof image.b64_json === 'string' ? image.b64_json.trim() : '';
+        if (!base64) {
+            throw new Error('AI response did not include an uploadable image payload.');
         }
 
-        return '';
+        const mimeType = typeof image.mime_type === 'string' && image.mime_type.trim() !== ''
+            ? image.mime_type.trim()
+            : 'image/png';
+        const blob = this.base64ToBlob(base64, mimeType);
+        const extension = this.detectGeneratedImageExtension(mimeType, image.name);
+        const name = typeof image.name === 'string' && image.name.trim() !== ''
+            ? image.name.trim()
+            : `ai-${Date.now()}.${extension}`;
+
+        return new File([blob], name, {type: mimeType});
     }
 
-    async insertGeneratedImage(src, options = {}) {
-        const imagePlugin = this.editor.getPlugin('image');
-        if (imagePlugin?.insertImage) {
-            await imagePlugin.insertImage({
-                src,
-                alt: options.alt || '',
-                align: options.align || '',
-                file: null,
-                isEdit: false
-            });
-            this.emit(EventBus.Events.CONTENT_CHANGE);
-            return;
+    base64ToBlob(base64, mimeType) {
+        const decoder = typeof window !== 'undefined' && typeof window.atob === 'function'
+            ? window.atob.bind(window)
+            : atob;
+        const binary = decoder(String(base64 || '').replace(/^data:[^,]+,/, '').trim());
+        const bytes = new Uint8Array(binary.length);
+
+        for (let index = 0; index < binary.length; index += 1) {
+            bytes[index] = binary.charCodeAt(index);
         }
 
-        this.restoreSelection();
-        const image = document.createElement('img');
-        image.src = src;
-        image.alt = options.alt || '';
-        this.insertHtml(image.outerHTML);
-        this.recordHistory(true);
-        this.emit(EventBus.Events.CONTENT_CHANGE);
-        this.focusEditor();
+        return new Blob([bytes], {type: mimeType || 'image/png'});
+    }
+
+    detectGeneratedImageExtension(mimeType, filename) {
+        const map = {
+            'image/jpeg': 'jpg',
+            'image/png': 'png',
+            'image/gif': 'gif',
+            'image/webp': 'webp'
+        };
+
+        if (mimeType && map[mimeType]) {
+            return map[mimeType];
+        }
+
+        const match = String(filename || '').match(/\.(jpg|jpeg|png|gif|webp)$/i);
+        if (match) {
+            const extension = match[1].toLowerCase();
+            return extension === 'jpeg' ? 'jpg' : extension;
+        }
+
+        return 'png';
     }
 
     destroy() {

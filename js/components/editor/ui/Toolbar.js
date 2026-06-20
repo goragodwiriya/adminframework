@@ -12,7 +12,7 @@ class Toolbar {
    * @param {RichTextEditor} editor - Editor instance
    * @param {Object} options - Configuration options
    */
-  constructor (editor, options = {}) {
+  constructor(editor, options = {}) {
     this.editor = editor;
     this.options = {
       items: Toolbar.defaultItems,
@@ -270,7 +270,7 @@ class Toolbar {
     customInput.value = '#000000';
 
     const customLabel = document.createElement('span');
-    customLabel.textContent = window.translate?.('Custom color') || 'Custom color';
+    customLabel.textContent = window.translate?.('Custom') || 'Custom';
 
     customInput.addEventListener('change', (e) => {
       this.handleColorSelect(id, e.target.value, def);
@@ -285,7 +285,7 @@ class Toolbar {
       const clearBtn = document.createElement('button');
       clearBtn.type = 'button';
       clearBtn.className = 'rte-color-clear';
-      clearBtn.textContent = window.translate?.('Remove color') || 'Remove color';
+      clearBtn.textContent = window.translate?.('Remove Color') || 'Remove Color';
       clearBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.handleColorSelect(id, null, def);
@@ -693,14 +693,14 @@ Toolbar.buttonDefinitions = {
   },
   textColor: {
     icon: 'icon-fontcolor',
-    title: 'Text color',
+    title: 'Text Color',
     type: 'dropdown',
     colorPicker: true,
     command: 'foreColor'
   },
   backgroundColor: {
     icon: 'icon-bgcolor',
-    title: 'Background color',
+    title: 'Background Color',
     type: 'dropdown',
     colorPicker: true,
     allowClear: true,

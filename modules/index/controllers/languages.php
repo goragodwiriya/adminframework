@@ -12,6 +12,7 @@ namespace Index\Languages;
 
 use Gcms\Api as ApiController;
 use Kotchasan\Http\Request;
+use Kotchasan\Http\Response;
 
 /**
  * API Language Controller

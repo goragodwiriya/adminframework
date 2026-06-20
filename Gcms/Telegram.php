@@ -113,15 +113,34 @@ class Telegram extends \Kotchasan\KBase
         $secretKey = hash('sha256', $token, true);
         $hash = hash_hmac('sha256', $dataCheckString, $secretKey);
 
-        // Validate hash and timestamp
-        if (strcmp($hash, $checkHash) !== 0) {
+        // Validate hash (constant-time) and timestamp
+        if (!is_string($checkHash) || !hash_equals($hash, $checkHash)) {
             return false; // Invalid hash
         }
-        if ((time() - $authData['auth_date']) > self::$validityPeriod) {
+        if ((time() - (int) $authData['auth_date']) > self::$validityPeriod) {
             return false; // Data expired
         }
 
         return $authData; // Return validated user data
+    }
+
+    /**
+     * Verify an inbound Telegram webhook request.
+     * Telegram echoes the secret set via setWebhook() in the
+     * X-Telegram-Bot-Api-Secret-Token header on every update.
+     *
+     * @param string $sentToken Value of the X-Telegram-Bot-Api-Secret-Token header
+     * @param string|null $secret Override (defaults to config telegram_webhook_secret)
+     *
+     * @return bool True only if the secret token matches
+     */
+    public static function verifyWebhookSecret($sentToken, $secret = null)
+    {
+        $expected = $secret !== null ? $secret : (string) self::$cfg->telegram_webhook_secret;
+        if ($expected === '') {
+            return false; // refuse when no secret configured (fail closed)
+        }
+        return is_string($sentToken) && hash_equals($expected, $sentToken);
     }
 
     /**

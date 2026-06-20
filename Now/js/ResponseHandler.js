@@ -28,6 +28,7 @@ const ResponseHandler = {
     defaultRedirectDelay: 1000,
     defaultNotificationDuration: 5000,
     allowEval: false, // Security: disabled by default
+    sanitizeHtml: true, // Security: sanitize server-driven HTML before injecting
     autoHandleFormResponses: true
   },
 
@@ -50,6 +51,53 @@ const ResponseHandler = {
     this.state.initialized = true;
 
     return this;
+  },
+
+  // ============ Security helpers ============
+  // Server-driven action payloads are NOT fully trusted: any endpoint can
+  // reflect user input into them. HTML is sanitized before injection and
+  // arbitrary attribute/script injection is blocked.
+
+  // Sanitize HTML content before it reaches innerHTML/insertAdjacentHTML.
+  // A privileged endpoint may opt out with action.raw === true, but only when
+  // the deployment has explicitly enabled allowEval (raw HTML is privileged).
+  sanitizeContent(content, action) {
+    if (action && action.raw === true && this.config.allowEval) {
+      return content;
+    }
+    if (this.config.sanitizeHtml === false) {
+      return content;
+    }
+    if (window.SecurityManager && typeof window.SecurityManager.sanitizeHtml === 'function') {
+      return window.SecurityManager.sanitizeHtml(content);
+    }
+    if (window.TemplateManager && typeof window.TemplateManager.sanitizeElement === 'function') {
+      const out = window.TemplateManager.sanitizeElement(String(content ?? ''));
+      if (typeof out === 'string') return out;
+    }
+    return String(content ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+  },
+
+  // Reject event-handler attributes and srcdoc outright.
+  isUnsafeAttrName(name) {
+    const n = String(name || '').toLowerCase();
+    return n.startsWith('on') || n === 'srcdoc';
+  },
+
+  // Clean dangerous schemes out of URL-bearing attributes.
+  sanitizeAttrValue(name, value) {
+    const n = String(name || '').toLowerCase();
+    const urlAttrs = ['href', 'src', 'action', 'formaction', 'poster', 'xlink:href', 'background'];
+    if (urlAttrs.includes(n)) {
+      if (window.SecurityManager && typeof window.SecurityManager.sanitizeUrl === 'function') {
+        return window.SecurityManager.sanitizeUrl(value);
+      }
+      const lower = String(value || '').trim().toLowerCase();
+      if (/^(?:javascript|data|vbscript|file|about):/.test(lower)) return '';
+    }
+    return value;
   },
 
   /**
@@ -165,7 +213,7 @@ const ResponseHandler = {
 
         switch (method) {
           case 'html':
-            el.innerHTML = content;
+            el.innerHTML = this.sanitizeContent(content, action);
             break;
           case 'text':
             el.textContent = content;
@@ -174,16 +222,16 @@ const ResponseHandler = {
             if ('value' in el) el.value = content;
             break;
           case 'append':
-            el.insertAdjacentHTML('beforeend', content);
+            el.insertAdjacentHTML('beforeend', this.sanitizeContent(content, action));
             break;
           case 'prepend':
-            el.insertAdjacentHTML('afterbegin', content);
+            el.insertAdjacentHTML('afterbegin', this.sanitizeContent(content, action));
             break;
           case 'attr':
-            // Set single attribute on element
+            // Set single attribute on element (reject event handlers / unsafe URLs)
             const attrName = action.attr || action.attribute;
-            if (attrName) {
-              el.setAttribute(attrName, content);
+            if (attrName && !this.isUnsafeAttrName(attrName)) {
+              el.setAttribute(attrName, this.sanitizeAttrValue(attrName, content));
             }
             break;
           case 'attrs':
@@ -200,16 +248,18 @@ const ResponseHandler = {
               } else if (name === 'text' || name === 'textContent') {
                 el.textContent = value;
               } else if (name === 'html' || name === 'innerHTML') {
-                el.innerHTML = value;
-              } else {
-                el.setAttribute(name, value);
+                el.innerHTML = this.sanitizeContent(value, action);
+              } else if (!this.isUnsafeAttrName(name)) {
+                el.setAttribute(name, this.sanitizeAttrValue(name, value));
               }
             });
             break;
         }
 
-        // Execute scripts if present
-        if (method === 'html' || method === 'append' || method === 'prepend') {
+        // Execute inline scripts only when arbitrary code execution is explicitly
+        // enabled (allowEval). Otherwise server-sent <script> is inert — sanitize
+        // already strips it; this guards the raw/opt-out path too.
+        if (this.config.allowEval && (method === 'html' || method === 'append' || method === 'prepend')) {
           const scripts = el.querySelectorAll('script');
           scripts.forEach(script => {
             try {
@@ -276,15 +326,17 @@ const ResponseHandler = {
         elements.forEach(el => {
           if (!el) return;
 
+          // TemplateManager already sanitizes the template body; sanitize the
+          // final write too as defense-in-depth.
           switch (method) {
             case 'html':
-              el.innerHTML = container.innerHTML;
+              el.innerHTML = this.sanitizeContent(container.innerHTML, action);
               break;
             case 'append':
-              el.insertAdjacentHTML('beforeend', container.innerHTML);
+              el.insertAdjacentHTML('beforeend', this.sanitizeContent(container.innerHTML, action));
               break;
             case 'prepend':
-              el.insertAdjacentHTML('afterbegin', container.innerHTML);
+              el.insertAdjacentHTML('afterbegin', this.sanitizeContent(container.innerHTML, action));
               break;
           }
         });
@@ -356,6 +408,9 @@ const ResponseHandler = {
 
       if (!target || !name) return;
 
+      // Block event-handler / srcdoc attributes from server-driven payloads.
+      if (this.isUnsafeAttrName(name)) return;
+
       const elements = this.resolveActionElements(target, context);
 
       elements.forEach(el => {
@@ -364,7 +419,7 @@ const ResponseHandler = {
         if (value === null || value === undefined) {
           el.removeAttribute(name);
         } else {
-          el.setAttribute(name, value);
+          el.setAttribute(name, this.sanitizeAttrValue(name, value));
         }
       });
     });
@@ -1376,12 +1431,18 @@ const ResponseHandler = {
    * @private
    */
   showErrorModal(message) {
+    // Error text frequently echoes server/exception strings — escape it.
+    const safeMessage = (window.SecurityManager && typeof window.SecurityManager.escapeHtml === 'function')
+      ? window.SecurityManager.escapeHtml(message)
+      : String(message == null ? '' : message)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
     const errorHtml = `
       <div class="error-modal">
         <div class="modal-body icon-warning">
           <div>
             <h3>Error</h3>
-            <p>${message}</p>
+            <p>${safeMessage}</p>
           </div>
         </div>
         <div class="modal-footer">

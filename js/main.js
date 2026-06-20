@@ -815,7 +815,7 @@ function initThemeSettingsAssistant(element, data) {
         return;
       }
 
-      const suggestion = result?.data?.suggestion || null;
+      const suggestion = result?.data?.data?.suggestion || result?.data?.suggestion || null;
       if (!suggestion || typeof suggestion !== 'object') {
         const errMsg = Now.translate('Theme suggestion response is missing suggestion data');
         NotificationManager.error(errMsg);

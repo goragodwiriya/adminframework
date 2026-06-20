@@ -24,16 +24,6 @@ use Kotchasan\Database\Sql;
 class Model extends \Kotchasan\Model
 {
     /**
-     * Maximum login attempts before lockout
-     */
-    const MAX_LOGIN_ATTEMPTS = 5;
-
-    /**
-     * Lockout duration in seconds (30 minutes)
-     */
-    const LOCKOUT_DURATION = 1800;
-
-    /**
      * Token expiry time in seconds (24 hours)
      */
     const TOKEN_EXPIRY = 86400;
@@ -82,7 +72,7 @@ class Model extends \Kotchasan\Model
 
         if (!$user) {
             // Record failed attempt
-            self::recordLoginAttempt($username, $clientIp, false);
+            self::recordLoginAttempt($username, $clientIp, false, (string) ($deviceContext['user_agent'] ?? ''));
 
             // Generic error message to prevent user enumeration
             return [
@@ -95,7 +85,7 @@ class Model extends \Kotchasan\Model
         // Verify password
         if (!self::verifyPassword($password, $user->password, $user->salt)) {
             // Record failed attempt
-            self::recordLoginAttempt($username, $clientIp, false);
+            self::recordLoginAttempt($username, $clientIp, false, (string) ($deviceContext['user_agent'] ?? ''));
 
             return [
                 'success' => false,
@@ -231,10 +221,15 @@ class Model extends \Kotchasan\Model
      */
     public static function setCookie($name, $value)
     {
+        // Harden cookie flags consistently with Auth\Controller: mark Secure and
+        // upgrade SameSite to Strict over HTTPS. HttpOnly is always set so the
+        // token is never readable from JavaScript (XSS cannot exfiltrate it).
+        $secure = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on');
         $options = [
             'path' => '/',
+            'secure' => $secure,
             'httponly' => true,
-            'samesite' => 'Lax',
+            'samesite' => $secure ? 'Strict' : 'Lax',
             'expires' => time() + self::TOKEN_EXPIRY
         ];
 
@@ -302,16 +297,10 @@ class Model extends \Kotchasan\Model
             $payload = array_merge($payload, $extraPayload);
         }
 
-        // Encode payload
-        $payloadJson = json_encode($payload);
-        $payloadBase64 = rtrim(strtr(base64_encode($payloadJson), '+/', '-_'), '=');
-
-        // Create signature
-        $secret = self::getTokenSecret();
-        $signature = hash_hmac('sha256', $payloadBase64, $secret);
-
-        // Return token
-        return $payloadBase64.'.'.$signature;
+        // Issue a standard 3-part JWT (header.payload.signature, HS256). This
+        // replaces the previous non-standard 2-part token so the value is a real
+        // JWT that the API/JS layers can parse and validate consistently.
+        return \Kotchasan\Jwt::encode($payload, self::getTokenSecret(), 'HS256');
     }
 
     /**
@@ -327,36 +316,16 @@ class Model extends \Kotchasan\Model
             return null;
         }
 
-        // Split token
-        $parts = explode('.', $token);
-        if (count($parts) !== 2) {
-            return null;
-        }
-
-        list($payloadBase64, $signature) = $parts;
-
-        // Verify signature
-        $secret = self::getTokenSecret();
-        $expectedSignature = hash_hmac('sha256', $payloadBase64, $secret);
-
-        if (!hash_equals($expectedSignature, $signature)) {
-            return null;
-        }
-
-        // Decode payload
-        $payloadJson = base64_decode(strtr($payloadBase64, '-_', '+/'));
-        $payload = json_decode($payloadJson, true);
+        // Verify the standard JWT: checks the HS256 signature, the algorithm
+        // allow-list (rejects alg:none), and the exp/nbf claims.
+        $payload = \Kotchasan\Jwt::decode($token, self::getTokenSecret(), ['HS256']);
 
         if (!$payload || !isset($payload['exp']) || !isset($payload['sub'])) {
             return null;
         }
 
+        // Revocation (jti/session) is application state, not part of the JWT spec.
         if (self::isTokenRevoked($payload)) {
-            return null;
-        }
-
-        // Check expiration
-        if ($payload['exp'] < time()) {
             return null;
         }
 
@@ -740,89 +709,46 @@ class Model extends \Kotchasan\Model
      */
     public static function checkRateLimit($username, $clientIp = null)
     {
-        $key = self::getRateLimitKey($username, $clientIp);
-        $now = time();
+        $ip = (string) ($clientIp ?? '');
 
-        // Check from cache/session
-        if (session_status() == PHP_SESSION_NONE) {
-            session_start();
+        if (!class_exists('\\Gcms\\LoginAttempt') || !\Gcms\LoginAttempt::isLocked($username, $ip)) {
+            return ['allowed' => true];
         }
 
-        $attempts = $_SESSION['login_attempts'][$key] ?? null;
+        $retryAfter = \Gcms\LoginAttempt::getRemainingLockTime($username, $ip);
+        $message = $retryAfter > 0
+            ? 'Too many login attempts. Please try again in '.ceil($retryAfter / 60).' minutes.'
+            : 'Too many login attempts. Please try again later.';
 
-        if ($attempts) {
-            // Check if locked out
-            if ($attempts['locked_until'] && $attempts['locked_until'] > $now) {
-                $retryAfter = $attempts['locked_until'] - $now;
-                return [
-                    'allowed' => false,
-                    'message' => "Too many login attempts. Please try again in ".ceil($retryAfter / 60)." minutes.",
-                    'retry_after' => $retryAfter
-                ];
-            }
-
-            // Reset if lockout expired
-            if ($attempts['locked_until'] && $attempts['locked_until'] <= $now) {
-                unset($_SESSION['login_attempts'][$key]);
-            }
-        }
-
-        return ['allowed' => true];
+        return [
+            'allowed' => false,
+            'message' => $message,
+            'retry_after' => max(0, (int) $retryAfter)
+        ];
     }
 
     /**
-     * Record login attempt for rate limiting
+     * Record login attempt in the shared DB-backed brute-force store.
      *
      * @param string $username
      * @param string|null $clientIp
      * @param bool $success
+     * @param string $userAgent
      */
-    public static function recordLoginAttempt($username, $clientIp, $success)
+    public static function recordLoginAttempt($username, $clientIp, $success, $userAgent = '')
     {
-        $key = self::getRateLimitKey($username, $clientIp);
-        $now = time();
-
-        if (session_status() == PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        if ($success) {
-            // Clear attempts on successful login
-            unset($_SESSION['login_attempts'][$key]);
+        if (!class_exists('\\Gcms\\LoginAttempt')) {
             return;
         }
 
-        // Initialize or update attempts
-        if (!isset($_SESSION['login_attempts'][$key])) {
-            $_SESSION['login_attempts'][$key] = [
-                'count' => 0,
-                'first_attempt' => $now,
-                'locked_until' => null
-            ];
+        $ip = (string) ($clientIp ?? '');
+
+        if ($success) {
+            \Gcms\LoginAttempt::clear($username, $ip);
+            return;
         }
 
-        $attempts = &$_SESSION['login_attempts'][$key];
-        $attempts['count']++;
-        $attempts['last_attempt'] = $now;
-
-        // Check if should lock
-        if ($attempts['count'] >= self::MAX_LOGIN_ATTEMPTS) {
-            $attempts['locked_until'] = $now + self::LOCKOUT_DURATION;
-        }
-    }
-
-    /**
-     * Get rate limit key
-     *
-     * @param string $username
-     * @param string|null $clientIp
-     *
-     * @return string
-     */
-    private static function getRateLimitKey($username, $clientIp)
-    {
-        // Use both username and IP for more granular control
-        return md5($username.':'.($clientIp ?? 'unknown'));
+        \Gcms\LoginAttempt::record($username, $ip, $userAgent);
     }
 
     /**

@@ -58,6 +58,10 @@ meter,
 progress {
   display: inline-block;
 }
+/* Restore [hidden] — must follow block/inline rules above or they override the UA stylesheet */
+[hidden] {
+  display: none !important;
+}
 /* Typography */
 h1,
 h2,
@@ -66,8 +70,7 @@ h4,
 h5,
 h6 {
   font-family: var(--font-family-heading);
-  font-weight: var(--font-weight-bold);
-  margin: 0;
+  font-weight: var(--font-weight-heading);
 }
 h1 {
   font-size: var(--font-size-4xl);
@@ -290,7 +293,6 @@ input[type="radio"] {
 }
 input[type="file"] {
   border: none;
-  padding: 0;
 }
 /* Buttons */
 button,
@@ -355,7 +357,7 @@ table.border td:not(:first-child) {
   border: none;
   background-color: transparent;
   color: inherit;
-  border-radius: none;
+  border-radius: 0;
   padding: 0;
   width: auto;
   height: auto;

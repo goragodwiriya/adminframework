@@ -12,7 +12,6 @@ namespace Gcms;
 
 use Kotchasan\ApiController;
 use Kotchasan\Http\Request;
-use Kotchasan\Http\Response;
 
 /**
  * Base Table Controller
@@ -39,7 +38,7 @@ class Table extends \Kotchasan\ApiController
      *
      * @param Request $request
      *
-     * @return Response
+     * @return \Kotchasan\Http\Response
      */
     public function index(Request $request)
     {
@@ -88,12 +87,15 @@ class Table extends \Kotchasan\ApiController
      * @param Request $request
      * @param object $login Current logged-in user
      *
-     * @return true|Response Return true if authorized, or error Response if not
+     * @return true|\Kotchasan\Http\Response Return true if authorized, or error Response if not
      */
     protected function checkAuthorization(Request $request, $login)
     {
-        // Default: allow all authenticated users
-        // Override in subclass to add restrictions
+        // Default implementation: only check if user is logged in
+        if (!$login) {
+            return $this->errorResponse('Forbidden', 403);
+        }
+
         return true;
     }
 
@@ -108,7 +110,7 @@ class Table extends \Kotchasan\ApiController
      *
      * @param Request $request
      *
-     * @return Response
+     * @return \Kotchasan\Http\Response
      */
     public function action(Request $request)
     {
@@ -169,7 +171,7 @@ class Table extends \Kotchasan\ApiController
      *
      * @param Request $request
      *
-     * @return Response
+     * @return \Kotchasan\Http\Response
      */
     public function export(Request $request)
     {

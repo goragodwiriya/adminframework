@@ -102,6 +102,7 @@ class PostgreSQLFunctionBuilder extends AbstractSQLFunctionBuilder
      */
     public function jsonExtract(string $column, string $path): string
     {
+        $path = $this->escapeJsonPath($path);
         return "{$column}->>'{$path}'";
     }
 
@@ -115,10 +116,12 @@ class PostgreSQLFunctionBuilder extends AbstractSQLFunctionBuilder
      */
     public function jsonContains(string $column, string $value, ?string $path = null): string
     {
+        $value = $this->escapeStringLiteral($value);
         if ($path === null) {
             return "{$column} @> '{$value}'";
         }
 
+        $path = $this->escapeJsonPath($path);
         return "{$column}->'{$path}' @> '{$value}'";
     }
 
@@ -134,6 +137,14 @@ class PostgreSQLFunctionBuilder extends AbstractSQLFunctionBuilder
     {
         if (is_array($columns)) {
             $columns = implode(' || \' \' || ', $columns);
+        }
+
+        // SQL injection guard: $query and $language are interpolated into string
+        // literals, so escape single quotes (PostgreSQL standard: '' ).
+        $query = str_replace("'", "''", $query);
+        // $language must be a plain regconfig identifier — reject anything else.
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $language)) {
+            $language = 'english';
         }
 
         return "to_tsvector('{$language}', {$columns}) @@ plainto_tsquery('{$language}', '{$query}')";

@@ -95,14 +95,12 @@ class Controller extends ApiController
      */
     private function isValidSecret(Request $request)
     {
-        $secret = trim((string) (self::$cfg->telegram_webhook_secret ?? ''));
-        if ($secret === '') {
-            return true;
-        }
-
-        $header = trim((string) $request->getHeaderLine('x-telegram-bot-api-secret-token'));
-
-        return $header !== '' && hash_equals($secret, $header);
+        // Single source of truth — \Gcms\Telegram::verifyWebhookSecret() fails
+        // CLOSED when no secret is configured (previously this failed OPEN,
+        // accepting any request whenever telegram_webhook_secret was unset).
+        return \Gcms\Telegram::verifyWebhookSecret(
+            trim((string) $request->getHeaderLine('x-telegram-bot-api-secret-token'))
+        );
     }
 
     /**

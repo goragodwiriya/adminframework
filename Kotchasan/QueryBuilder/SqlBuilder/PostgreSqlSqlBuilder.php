@@ -22,6 +22,27 @@ class PostgreSqlSqlBuilder extends AbstractSqlBuilder
     protected array $supportedDrivers = ['pgsql', 'postgres', 'postgresql'];
 
     /**
+     * PostgreSQL does not support LIMIT on UPDATE/DELETE. Throw rather than
+     * silently dropping the limit (which would affect every matching row).
+     *
+     * @param string   $query
+     * @param string   $verb
+     * @param int|null $limit
+     * @return string
+     * @throws \RuntimeException
+     */
+    public function applyUpdateDeleteLimit(string $query, string $verb, ?int $limit): string
+    {
+        if ($limit === null) {
+            return $query;
+        }
+        throw new \RuntimeException(
+            $verb.' ... LIMIT is not supported on PostgreSQL. Use a subquery on '
+            .'ctid/primary key (e.g. WHERE id IN (SELECT id ... LIMIT n)) instead.'
+        );
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function getDriverName(): string

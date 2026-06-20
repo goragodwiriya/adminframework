@@ -72,15 +72,13 @@ return [
     'uploadMinStatus' => 0,
 
     // ============================================
-    // PRESET CATEGORIES
+    // PREPARED FILES (read-only library, optional)
     // ============================================
 
     /**
-     * Preset file categories shown in the "Prepared files" tab.
+     * Folder under DATA_FOLDER for the "Prepared file" tab (e.g. datas/prepared).
+     * Not created automatically if missing — tab shows empty until you add files (SFTP, etc.).
+     * Subfolders appear as categories; files in the root appear under "all".
      */
-    'presetCategories' => [
-        ['id' => 'images', 'name' => 'Images', 'icon' => 'icon-image'],
-        ['id' => 'documents', 'name' => 'Documents', 'icon' => 'icon-file'],
-        ['id' => 'media', 'name' => 'Media', 'icon' => 'icon-video']
-    ]
+    'presetStorageFolder' => 'prepared',
 ];

@@ -51,7 +51,8 @@ const SecurityManager = {
       enabled: true,
       directives: {
         'default-src': ["'self'"],
-        'script-src': ["'self'", "'unsafe-inline'"],
+        // Allow social SDK hosts; include 'unsafe-eval' if Telegram widget requires it.
+        'script-src': ["'self'", "https://accounts.google.com", "https://apis.google.com", "https://connect.facebook.net", "https://telegram.org", "https://*.telegram.org", "'unsafe-inline'", "'unsafe-eval'"],
         'style-src': ["'self'", "'unsafe-inline'"],
         'img-src': ["'self'", "data:", "https:"],
         'font-src': ["'self'"],
@@ -74,7 +75,7 @@ const SecurityManager = {
 
   async init(options = {}) {
     try {
-      this.config = {...this.config, ...this.mergeDeep(this.config, options)};
+      this.config = this.mergeDeep(this.config, options);
 
       // Initialize CSRF protection
       if (this.config.csrf.enabled) {
@@ -299,6 +300,16 @@ const SecurityManager = {
     return localStorage.getItem(this.config.jwt.storageKey);
   },
 
+  /**
+   * Structural pre-check for a JWT held client-side.
+   *
+   * SECURITY: This does NOT and CANNOT verify the token signature — the secret
+   * lives only on the server. A `true` result means "this token is well-formed,
+   * unexpired, and claims our issuer/audience", NOT "this token is authentic".
+   * The server `/auth/verify` endpoint (see AuthManager.checkAuthStatus) is the
+   * sole authority for authentication/authorization. Use this only to decide
+   * whether to keep or drop a locally cached token before hitting the server.
+   */
   validateJWTToken(token) {
     if (!token) return false;
 
@@ -306,10 +317,23 @@ const SecurityManager = {
       const parts = token.split('.');
       if (parts.length !== 3) return false;
 
-      const payload = JSON.parse(atob(parts[1]));
+      // Reject forged "alg: none" tokens and any algorithm we do not expect.
+      // (Defence-in-depth: the server enforces this too.)
+      const header = JSON.parse(this.base64UrlDecode(parts[0]));
+      const alg = String(header.alg || '').toUpperCase();
+      if (alg === 'NONE' || alg !== String(this.config.jwt.algorithm).toUpperCase()) {
+        return false;
+      }
 
-      // Check expiration
-      if (payload.exp && Date.now() >= payload.exp * 1000) {
+      const payload = JSON.parse(this.base64UrlDecode(parts[1]));
+
+      // Check expiration (with small clock-skew leeway)
+      if (payload.exp && Date.now() >= (payload.exp * 1000) + 0) {
+        return false;
+      }
+
+      // Reject tokens that are not yet valid
+      if (payload.nbf && Date.now() < payload.nbf * 1000) {
         return false;
       }
 
@@ -328,6 +352,13 @@ const SecurityManager = {
     } catch (error) {
       return false;
     }
+  },
+
+  // Decode a base64url segment (JWT uses base64url, not standard base64).
+  base64UrlDecode(segment) {
+    const padded = segment.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = padded.length % 4 ? '='.repeat(4 - (padded.length % 4)) : '';
+    return atob(padded + pad);
   },
 
   async clearJWTToken() {
@@ -351,7 +382,7 @@ const SecurityManager = {
     if (!token) return;
 
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      const payload = JSON.parse(this.base64UrlDecode(token.split('.')[1]));
       const exp = payload.exp;
       const now = Math.floor(Date.now() / 1000);
       const timeUntilRefresh = (exp - now) * 1000 - this.config.jwt.refreshBeforeExpiry;
@@ -732,6 +763,9 @@ const SecurityManager = {
     }
 
     Object.keys(source).forEach(key => {
+      // Prototype-pollution guard: never copy __proto__/constructor/prototype
+      if (this.isUnsafeKey(key)) return;
+
       const targetValue = target[key];
       const sourceValue = source[key];
 
@@ -747,6 +781,134 @@ const SecurityManager = {
     return target;
   },
 
+  // ============ Centralized sanitization & safe-object API ============
+  // This is the single security layer the rest of the framework routes through.
+  // Render paths should call setSafeHtml/sanitizeHtml/escapeHtml/sanitizeUrl
+  // instead of touching innerHTML directly; object merges/path-sets should use
+  // safeMerge/safeSetByPath to stay free of prototype pollution.
+
+  // Keys that must never be written through merge/clone/path-set operations.
+  isUnsafeKey(key) {
+    return key === '__proto__' || key === 'constructor' || key === 'prototype';
+  },
+
+  /**
+   * Entity-encode a value for safe insertion as HTML text. Self-contained so it
+   * works regardless of Utils load order.
+   */
+  escapeHtml(value) {
+    const s = value == null ? '' : String(value);
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  },
+
+  /**
+   * Return a sanitized HTML string safe to assign to innerHTML.
+   * Prefers DOMPurify, falls back to the framework allowlist sanitizer
+   * (TemplateManager.sanitizeElement), and finally to full entity-encoding.
+   */
+  sanitizeHtml(html, options = {}) {
+    if (html == null) return '';
+    const str = String(html);
+
+    if (window.DOMPurify) {
+      return window.DOMPurify.sanitize(str, options.domPurify || {});
+    }
+
+    const tm = window.TemplateManager;
+    if (tm && typeof tm.sanitizeElement === 'function') {
+      try {
+        const out = tm.sanitizeElement(str);
+        if (typeof out === 'string') return out;
+      } catch (e) {
+        // fall through to escaping
+      }
+    }
+
+    // Last resort: lossless-but-safe — render as inert text.
+    return this.escapeHtml(str);
+  },
+
+  /**
+   * Assign sanitized HTML to an element. Preferred over `el.innerHTML = ...`
+   * anywhere the markup is dynamic / data-derived.
+   */
+  setSafeHtml(element, html) {
+    if (element) {
+      element.innerHTML = this.sanitizeHtml(html);
+    }
+    return element;
+  },
+
+  /**
+   * Validate/clean a URL for use in href/src. Returns '' for dangerous schemes
+   * (javascript:, data:, vbscript:, ...).
+   */
+  sanitizeUrl(url) {
+    if (url == null) return '';
+    const str = String(url).trim();
+
+    const tm = window.TemplateManager;
+    if (tm && typeof tm.sanitizeUrlAttribute === 'function') {
+      return tm.sanitizeUrlAttribute(str) || '';
+    }
+
+    const lower = str.toLowerCase();
+    const blocked = ['javascript:', 'data:', 'vbscript:', 'file:', 'about:'];
+    if (blocked.some(proto => lower.startsWith(proto))) return '';
+    return str;
+  },
+
+  /**
+   * Prototype-pollution-safe recursive merge. Use instead of ad-hoc deep merges
+   * when `source` may originate from untrusted JSON.
+   */
+  safeMerge(target, source) {
+    const isObject = (obj) => obj && typeof obj === 'object' && !Array.isArray(obj);
+    if (!isObject(target) || !isObject(source)) return source;
+
+    Object.keys(source).forEach(key => {
+      if (this.isUnsafeKey(key)) return;
+      const targetValue = target[key];
+      const sourceValue = source[key];
+      if (Array.isArray(targetValue) && Array.isArray(sourceValue)) {
+        target[key] = targetValue.concat(sourceValue);
+      } else if (isObject(targetValue) && isObject(sourceValue)) {
+        target[key] = this.safeMerge(Object.assign({}, targetValue), sourceValue);
+      } else {
+        target[key] = sourceValue;
+      }
+    });
+    return target;
+  },
+
+  /**
+   * Prototype-pollution-safe "set nested property by path". Refuses to traverse
+   * or write __proto__/constructor/prototype. Returns the (possibly unchanged)
+   * root object.
+   */
+  safeSetByPath(obj, path, value) {
+    if (!obj || typeof obj !== 'object') return obj;
+    const parts = Array.isArray(path) ? path : String(path).split('.');
+    let cur = obj;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const key = parts[i];
+      if (this.isUnsafeKey(key)) return obj;
+      if (typeof cur[key] !== 'object' || cur[key] === null) {
+        cur[key] = {};
+      }
+      cur = cur[key];
+    }
+    const last = parts[parts.length - 1];
+    if (this.isUnsafeKey(last)) return obj;
+    cur[last] = value;
+    return obj;
+  },
+
   // ============ Public API ============
   getCSRFTokenForForm(form) {
     return this.state.csrfToken;
@@ -759,14 +921,9 @@ const SecurityManager = {
     ]);
   },
 
-  isRateLimited(endpoint = null) {
-    const result = this.checkRateLimit(endpoint || window.location.pathname);
-    return !result.allowed;
-  },
-
-  getRateLimitStatus(endpoint = null) {
-    return this.checkRateLimit(endpoint || window.location.pathname);
-  },
+  // Rate limiting is enforced by the backend (see class header). The former
+  // isRateLimited()/getRateLimitStatus() helpers referenced a checkRateLimit()
+  // that never existed and were removed as dead, throw-on-call code.
 
   addCSRFToRequest(config) {
     if (this.config.csrf.enabled && this.shouldAddCSRF(config) && this.state.csrfToken) {

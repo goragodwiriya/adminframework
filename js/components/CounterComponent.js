@@ -166,27 +166,74 @@ const CounterComponent = {
   },
 
   /**
+   * Clear stale preview text / partial counter DOM before first mount.
+   * Safe to call on empty [data-component="counter"] elements.
+   */
+  clearElement(element) {
+    if (!element) return;
+
+    const instance = this.getInstance(element);
+    if (instance) {
+      this.stop(instance);
+
+      if (instance.waypointId && window.ScrollManager?.removeWaypoint) {
+        try {
+          window.ScrollManager.removeWaypoint(instance.waypointId);
+        } catch (e) {
+          console.error('Error removing waypoint:', e);
+        }
+      }
+
+      if (instance.scrollHandler && window.EventManager?.off) {
+        window.EventManager.off('scroll:progress', instance.scrollHandler);
+      }
+
+      if (instance.observer) {
+        instance.observer.disconnect();
+        instance.observer = null;
+      }
+
+      if (instance.id) {
+        this.state.instances.delete(instance.id);
+      }
+
+      delete element.counterInstance;
+      delete element.dataset.counterComponentId;
+    }
+
+    element.classList.remove('counter-component');
+    element.querySelectorAll('.counter-container, .counter-wrapper, .counter-value, .counter-prefix, .counter-suffix').forEach(node => node.remove());
+    element.textContent = '';
+  },
+
+  /**
    * Prepare DOM structure
    */
   prepareDOM(instance) {
     const {element, options} = instance;
 
-    // Add class counter-component
+    const existingContainer = element.querySelector(':scope > .counter-container');
+    const existingValue = existingContainer?.querySelector('.counter-value, [data-counter-value]');
+    if (existingContainer && existingValue) {
+      element.classList.add('counter-component');
+      instance.elements.container = existingContainer;
+      instance.elements.wrapper = existingContainer.querySelector('.counter-wrapper');
+      instance.elements.value = existingValue;
+      return;
+    }
+
+    this.clearElement(element);
     element.classList.add('counter-component');
 
-    // Create container for the number
     const container = document.createElement('div');
     container.className = 'counter-container';
 
-    // Create wrapper
     const wrapper = document.createElement('div');
     wrapper.className = 'counter-wrapper';
 
-    // Create element for displaying value
     const valueElement = document.createElement('span');
     valueElement.className = 'counter-value';
 
-    // If there is an HTML template
     if (options.template) {
       try {
         if (typeof options.template === 'string') {
@@ -205,12 +252,10 @@ const CounterComponent = {
         instance.elements.value = valueElement;
       }
     } else {
-      // If there is no template, use the default structure
       wrapper.appendChild(valueElement);
       instance.elements.value = valueElement;
     }
 
-    // Add prefix and suffix
     if (options.prefix) {
       const prefixElement = document.createElement('span');
       prefixElement.className = 'counter-prefix';
@@ -225,25 +270,9 @@ const CounterComponent = {
       wrapper.appendChild(suffixElement);
     }
 
-    // Append to DOM
     container.appendChild(wrapper);
+    element.appendChild(container);
 
-    // If the element is empty, replace its content
-    if (element.innerHTML.trim() === '') {
-      element.appendChild(container);
-    } else {
-      // If there is existing content, look for a placeholder for the value
-      const placeholder = element.querySelector('[data-counter-value]');
-      if (placeholder) {
-        instance.elements.value = placeholder;
-      } else {
-        // If there is no placeholder, insert the element for displaying the value
-        instance.elements.value = valueElement;
-        element.appendChild(valueElement);
-      }
-    }
-
-    // Store elements
     instance.elements.container = container;
     instance.elements.wrapper = wrapper;
   },

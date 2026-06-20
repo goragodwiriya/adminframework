@@ -3440,19 +3440,6 @@ const FormManager = {
       } catch (e) {}
     }
 
-    // For login forms, force redirect to configured after-login path.
-    if (element.dataset.form === 'login' && data && data.actions) {
-      const forcedAfterLogin = element.dataset.redirectAfterLogin
-        || window.RouterManager?.config?.auth?.redirects?.afterLogin
-        || '/';
-      const redirectAction = data.actions.find(a => a.type === 'redirect');
-      if (redirectAction) {
-        redirectAction.url = forcedAfterLogin;
-      }
-      sessionStorage.removeItem('intended_url');
-      sessionStorage.removeItem('auth_intended_route');
-    }
-
     // Process API response actions using ResponseHandler
     try {
       await ResponseHandler.process(data, {
@@ -3482,8 +3469,30 @@ const FormManager = {
       }
     }
 
-    // Handle redirect (if not handled by ResponseHandler actions)
-    if (!(data && data.actions && data.actions.some(a => a.type === 'redirect'))) {
+    // Post-submit redirect.
+    if (element.dataset.form === 'login') {
+      // Mark the session authenticated from the login response BEFORE redirecting.
+      // The httpOnly cookie is already set; in SPA mode the router's auth guard
+      // must see the authenticated state or it would bounce a client-side
+      // navigation back to /login. (Full page mode re-checks on reload anyway.)
+      if (window.AuthManager?.setAuthenticatedUser) {
+        try {
+          await AuthManager.setAuthenticatedUser(data);
+        } catch (e) {
+          console.warn('FormManager: failed to set authenticated user after login', e);
+        }
+      }
+
+      // Login redirects go through the single redirect authority (RedirectManager):
+      // it resolves the destination (intended route, else the area's configured
+      // home) and navigates correctly for both the SPA and normal page modes.
+      const explicit = element.dataset.redirectAfterLogin;
+      if (window.RedirectManager?.afterLogin) {
+        await RedirectManager.afterLogin(explicit ? {target: explicit, checkIntended: false} : {});
+      } else if (explicit) {
+        this.performRedirect(explicit);
+      }
+    } else if (!(data && data.actions && data.actions.some(a => a.type === 'redirect'))) {
       const redirectUrl = this.determineRedirectUrl(element, response, config);
 
       if (redirectUrl) {
@@ -3507,15 +3516,10 @@ const FormManager = {
   },
 
   determineRedirectUrl(element, response, config) {
+    // Note: login forms never reach here — their redirect is owned by
+    // RedirectManager.afterLogin() (see handleSuccess).
     // Use intended URL only when explicitly enabled.
     const shouldUseIntendedUrl = element.dataset.useIntendedUrl === 'true';
-
-    // Force login forms to land on after-login route.
-    if (element.dataset.form === 'login') {
-      return element.dataset.redirectAfterLogin
-        || window.RouterManager?.config?.auth?.redirects?.afterLogin
-        || '/';
-    }
 
     if (shouldUseIntendedUrl) {
       // Check hidden input, dataset, or sessionStorage

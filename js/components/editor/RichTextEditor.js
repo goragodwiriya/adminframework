@@ -30,8 +30,9 @@ class RichTextEditor {
     }
 
     // Bridge Now.translate → window.translate so all editor i18n calls use the
-    // system translation function automatically.
-    if (!window.translate && typeof window.Now?.translate === 'function') {
+    // system translation function automatically. Always refresh when Now is ready
+    // so we replace any early no-op stub from FileBrowser or other loaders.
+    if (typeof window.Now?.translate === 'function') {
       window.translate = (key, params) => window.Now.translate(key, params);
     }
 
@@ -42,6 +43,7 @@ class RichTextEditor {
       maxHeight: null,
       placeholder: '',
       readOnly: false,
+      tabToSpaces: 4,
       toolbar: Toolbar.defaultItems,
       stickyToolbar: false,
       plugins: [],

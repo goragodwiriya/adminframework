@@ -323,19 +323,21 @@ class ApiController extends \Kotchasan\KBase
 
         try {
             $tokenHeader = $request->getHeaderLine('X-CSRF-TOKEN');
-            // Require token in header
+            // Use HTTP 419 ("CSRF token mismatch") for all CSRF failures so the
+            // client can distinguish a recoverable token problem from a real 403
+            // authorization denial and transparently refresh + retry.
             if (empty($tokenHeader)) {
-                throw new ApiException('CSRF Token required in X-CSRF-TOKEN header', 403);
+                throw new ApiException('CSRF Token required in X-CSRF-TOKEN header', 419);
             }
 
             // Check token format (64 hex characters)
             if (!preg_match('/^[a-f0-9]{64}$/', $tokenHeader)) {
-                throw new ApiException('Invalid CSRF Token format', 403);
+                throw new ApiException('Invalid CSRF Token format', 419);
             }
 
             // Delegate to Request trait for unified validation
             if (!$request->validateCsrfToken($tokenHeader)) {
-                throw new ApiException('Invalid CSRF Token', 403);
+                throw new ApiException('Invalid CSRF Token', 419);
             }
         } finally {
             // Release session lock when this method started the session.

@@ -58,7 +58,9 @@ class Response implements ResponseInterface
         404 => 'Not Found',
         405 => 'Method Not Allowed',
         409 => 'Conflict',
+        419 => 'Page Expired',
         422 => 'Unprocessable Entity',
+        429 => 'Too Many Requests',
         500 => 'Internal Server Error',
         502 => 'Bad Gateway',
         503 => 'Service Unavailable'
@@ -369,8 +371,15 @@ class Response implements ResponseInterface
             }
         }
 
-        // Send status line
-        http_response_code($this->statusCode);
+        // Send status line. Emit an explicit "HTTP/1.1 <code> <phrase>" line so
+        // valid-but-non-standard codes (419 CSRF, 429 rate limit) are delivered
+        // as-is instead of being rewritten to 500 by the SAPI/Apache.
+        $phrase = $this->reasonPhrase !== '' ? $this->reasonPhrase : (self::$statusTexts[$this->statusCode] ?? '');
+        if ($phrase !== '') {
+            header(sprintf('HTTP/1.1 %d %s', $this->statusCode, $phrase), true, $this->statusCode);
+        } else {
+            http_response_code($this->statusCode);
+        }
 
         // Send headers
         foreach ($this->headers as $name => $values) {

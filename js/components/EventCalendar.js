@@ -2879,7 +2879,7 @@ const EventCalendar = {
         nextDate.setDate(nextDate.getDate() + (direction * 7));
         break;
       case 'month':
-        nextDate.setMonth(nextDate.getMonth() + direction);
+        return new Date(nextDate.getFullYear(), nextDate.getMonth() + direction, 1);
         break;
     }
 

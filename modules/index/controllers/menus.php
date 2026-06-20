@@ -62,7 +62,7 @@ class Controller extends \Gcms\Controller
                     'icon' => 'icon-brush'
                 ],
                 [
-                    'title' => 'Email settings',
+                    'title' => 'Email Settings',
                     'url' => '/email-settings',
                     'icon' => 'icon-email'
                 ],

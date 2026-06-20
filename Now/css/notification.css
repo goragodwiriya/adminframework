@@ -65,8 +65,6 @@
   opacity: 0;
   transform: translateX(100%) scale(0.95);
   transition: all var(--transition-speed) var(--transition-timing);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
 }
 /* Left position animations */
 .notification-container.notification-top-left .notification,

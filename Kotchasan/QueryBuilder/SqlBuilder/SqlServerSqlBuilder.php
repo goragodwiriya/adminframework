@@ -22,6 +22,33 @@ class SqlServerSqlBuilder extends AbstractSqlBuilder
     protected array $supportedDrivers = ['sqlsrv', 'mssql', 'sqlserver'];
 
     /**
+     * SQL Server's OFFSET..FETCH paging is only valid with an ORDER BY.
+     *
+     * @return bool
+     */
+    public function requiresOrderByForLimit(): bool
+    {
+        return true;
+    }
+
+    /**
+     * SQL Server uses TOP (n) right after the UPDATE/DELETE verb (it has no
+     * LIMIT clause for these statements).
+     *
+     * @param string   $query
+     * @param string   $verb 'UPDATE' or 'DELETE'
+     * @param int|null $limit
+     * @return string
+     */
+    public function applyUpdateDeleteLimit(string $query, string $verb, ?int $limit): string
+    {
+        if ($limit === null) {
+            return $query;
+        }
+        return preg_replace('/^\s*'.preg_quote($verb, '/').'\b/i', $verb.' TOP ('.(int) $limit.')', $query, 1);
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function getDriverName(): string
@@ -205,9 +232,6 @@ class SqlServerSqlBuilder extends AbstractSqlBuilder
             throw new \InvalidArgumentException('Insert data cannot be empty');
         }
 
-        // Note: SQL Server doesn't have a direct equivalent to INSERT IGNORE
-        // Would require MERGE statement or TRY/CATCH, ignoring the parameter for now
-
         $quotedTable = $this->quoteIdentifier($table);
 
         // Handle batch insert (array of arrays)
@@ -225,7 +249,8 @@ class SqlServerSqlBuilder extends AbstractSqlBuilder
                 $values[] = '('.implode(', ', $rowValues).')';
             }
 
-            return 'INSERT INTO '.$quotedTable.' ('.implode(', ', $quotedColumns).') VALUES '.implode(', ', $values);
+            $stmt = 'INSERT INTO '.$quotedTable.' ('.implode(', ', $quotedColumns).') VALUES '.implode(', ', $values);
+            return $this->wrapIgnore($stmt, $ignore);
         }
 
         // Single row insert
@@ -238,7 +263,27 @@ class SqlServerSqlBuilder extends AbstractSqlBuilder
             $bindings[] = $value;
         }
 
-        return 'INSERT INTO '.$quotedTable.' ('.implode(', ', $quotedColumns).') VALUES ('.implode(', ', $placeholders).')';
+        $stmt = 'INSERT INTO '.$quotedTable.' ('.implode(', ', $quotedColumns).') VALUES ('.implode(', ', $placeholders).')';
+        return $this->wrapIgnore($stmt, $ignore);
+    }
+
+    /**
+     * Emulate MySQL INSERT IGNORE on SQL Server by swallowing the insert error
+     * (e.g. duplicate-key) via TRY/CATCH — matching IGNORE's "downgrade error to
+     * warning" behavior. NOTE: for a multi-row batch this is all-or-nothing (a
+     * single bad row skips the whole batch), unlike MySQL which skips only the
+     * offending rows; prefer single-row inserts when relying on IGNORE.
+     *
+     * @param string $stmt
+     * @param bool   $ignore
+     * @return string
+     */
+    private function wrapIgnore(string $stmt, bool $ignore): string
+    {
+        if (!$ignore) {
+            return $stmt;
+        }
+        return 'BEGIN TRY '.$stmt.'; END TRY BEGIN CATCH END CATCH;';
     }
 
     /**

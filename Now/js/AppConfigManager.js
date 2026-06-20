@@ -768,6 +768,7 @@ const AppConfigManager = {
     if (element.closest('[data-component="api"]')) return true;       // ApiComponent
     if (element.closest('form[data-load-api]')) return true;          // FormManager with API loading
     if (element.closest('[data-load-api]')) return true;              // Any container with API loading
+    if (element.closest('.modal')) return true;                       // ModalDataBinder manages modal directives
     return false;
   },
 

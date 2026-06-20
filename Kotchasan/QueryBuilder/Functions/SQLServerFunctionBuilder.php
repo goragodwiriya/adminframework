@@ -72,7 +72,10 @@ class SQLServerFunctionBuilder extends AbstractSQLFunctionBuilder
      */
     public function rand(): string
     {
-        return "RAND()";
+        // SQL Server RAND() returns one value per statement (constant across
+        // rows), so ORDER BY RAND() would not shuffle. NEWID() varies per row,
+        // matching MySQL RAND() semantics for randomization.
+        return "NEWID()";
     }
 
     /**
@@ -118,6 +121,7 @@ class SQLServerFunctionBuilder extends AbstractSQLFunctionBuilder
             $columns = '('.implode(', ', $columns).')';
         }
 
+        $query = $this->escapeStringLiteral($query);
         return "CONTAINS({$columns}, '{$query}')";
     }
 

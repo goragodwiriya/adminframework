@@ -3,6 +3,7 @@
  *
  * Support for setting via data-*attributes:
  * -data-effect: type of effect (fade, slide, zoom, flip, blur)
+ * note: blur is a legacy alias that now uses transform/opacity only.
  * -data-duration: How long each slide is displayed (ms)
  * -data-speed: slide change speed (ms)
  * -data-autoplay: Start autoplay (true/false)
@@ -14,7 +15,7 @@
  */
 const Slideshow = {
   config: {
-    effect: 'fade',          //Effect type (fade, slide, zoom, flip, blur)
+    effect: 'fade',          // Effect type (fade, slide, zoom, flip, blur)
     duration: 5000,          // Duration of displaying each slide (ms)
     speed: 500,              // Slide change speed (ms)
     autoplay: true,          // Start playing automatically
@@ -188,7 +189,7 @@ const Slideshow = {
       }
     },
 
-    // Blur effect
+    // Legacy blur effect (no filter blur for performance)
     blur: {
       apply: (instance, currentIndex, nextIndex) => {
         const slides = instance.slides;
@@ -197,28 +198,29 @@ const Slideshow = {
 
         // Set transition
         slides.forEach(slide => {
-          slide.style.transition = `opacity ${instance.options.speed}ms ease, filter ${instance.options.speed}ms ease`;
+          slide.style.transition = `opacity ${instance.options.speed}ms ease, transform ${instance.options.speed}ms ease`;
         });
 
         // Prepare the next slide
         next.style.opacity = 0;
-        next.style.filter = 'blur(0px)';
+        next.style.transform = 'scale(1.02)';
         next.setAttribute('aria-hidden', 'false');
 
-        // Change slides with blur effect
+        // Change slides with soft transform effect
         setTimeout(() => {
           current.style.opacity = 0;
-          current.style.filter = 'blur(20px)';
+          current.style.transform = 'scale(0.98)';
           current.setAttribute('aria-hidden', 'true');
 
           next.style.opacity = 1;
+          next.style.transform = 'scale(1)';
 
           // Reset state after animation completes.
           setTimeout(() => {
             slides.forEach(slide => {
               if (slide !== next) {
                 slide.style.opacity = 0;
-                slide.style.filter = '';
+                slide.style.transform = '';
               }
             });
           }, instance.options.speed);
@@ -444,7 +446,13 @@ const Slideshow = {
           if (slide.dataset.caption) {
             const caption = document.createElement('div');
             caption.className = `slideshow-caption slideshow-caption-${instance.options.captionPosition}`;
-            caption.innerHTML = slide.dataset.caption;
+            // data-caption may carry untrusted/CMS-authored content — sanitize
+            // before injecting as HTML, falling back to inert text.
+            if (window.SecurityManager && typeof window.SecurityManager.sanitizeHtml === 'function') {
+              caption.innerHTML = window.SecurityManager.sanitizeHtml(slide.dataset.caption);
+            } else {
+              caption.textContent = slide.dataset.caption;
+            }
             slideEl.appendChild(caption);
           }
 

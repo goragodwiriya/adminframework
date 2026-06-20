@@ -30,7 +30,13 @@ class Sms
      */
     public static function send($msisdn, $message)
     {
-        // เขียนคำสั่งเพื่อส่ง SMS ที่นี่
+        // Validate the phone number before handing it to the gateway, so a
+        // crafted value cannot inject extra parameters / CRLF into the gateway
+        // request URL.
+        $msisdn = preg_replace('/[^0-9+]/', '', (string) $msisdn);
+        if (!preg_match('/^\+?[0-9]{6,15}$/', $msisdn)) {
+            return 'Invalid phone number';
+        }
         return \Thaibluksms\Sms::send($msisdn, strip_tags($message));
     }
 

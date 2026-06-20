@@ -15,6 +15,8 @@ class FileBrowserFiles
     private $config = [
         'baseDir' => '', // Absolute path to upload directory
         'webUrl' => '', // Web URL prefix for files
+        /** When true (default), create baseDir on disk if missing. Set false for optional read-only roots (e.g. prepared files). */
+        'createBaseDir' => true,
         'maxFileSize' => 10485760, // 10MB default
         'allowedExtensions' => [
             // Images
@@ -60,8 +62,8 @@ class FileBrowserFiles
         // Normalize baseDir (remove trailing slash)
         $this->config['baseDir'] = rtrim($this->config['baseDir'], '/\\');
 
-        // Create baseDir if not exists
-        if (!is_dir($this->config['baseDir'])) {
+        // Create baseDir if not exists (skipped when createBaseDir is false)
+        if (!empty($this->config['createBaseDir']) && !is_dir($this->config['baseDir'])) {
             mkdir($this->config['baseDir'], 0755, true);
         }
     }
@@ -366,7 +368,7 @@ class FileBrowserFiles
             return ['error' => 'File too large (max '.$this->formatSize($this->config['maxFileSize']).')'];
         }
 
-        // Validate filename
+        // Validate filename from upload metadata (before generating storage name)
         $originalName = basename($file['name']);
         if (!$this->isValidFilename($originalName)) {
             return ['error' => 'Invalid filename'];
@@ -397,8 +399,9 @@ class FileBrowserFiles
             }
         }
 
-        // Generate unique filename if exists
-        $filename = $this->getUniqueFilename($destFullPath, $originalName);
+        // Store using a safe generated name instead of user-provided filename
+        $safeName = $this->generateSafeFilename($originalName);
+        $filename = $this->getUniqueFilename($destFullPath, $safeName);
         $targetPath = $destFullPath.'/'.$filename;
 
         // Move uploaded file
@@ -655,6 +658,30 @@ class FileBrowserFiles
         }
 
         return $name.'_'.$counter.'.'.$ext;
+    }
+
+    /**
+     * Generate a safe storage filename from an uploaded name.
+     * Keeps only a normalized ASCII stem and an allowed extension.
+     */
+    private function generateSafeFilename($originalName)
+    {
+        $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+        $name = strtolower(pathinfo($originalName, PATHINFO_FILENAME));
+
+        // Replace unsafe characters with separators, then trim.
+        $name = preg_replace('/[^a-z0-9]+/', '-', $name);
+        $name = trim((string) $name, '-');
+
+        if ($name === '') {
+            $name = 'file';
+        }
+
+        // Keep basename short and append random token to avoid collisions.
+        $name = substr($name, 0, 50);
+        $token = bin2hex(random_bytes(8));
+
+        return $name.'-'.$token.'.'.$ext;
     }
 
     /**

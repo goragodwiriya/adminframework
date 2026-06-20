@@ -32,6 +32,7 @@ class Controller extends \Gcms\Table
      * @var array
      */
     protected $allowedSortColumns = ['id', 'name'];
+
     /**
      * Check authorization for user management
      * Only admins can access, demo mode is blocked

@@ -312,8 +312,10 @@ class Html extends \Kotchasan\KBase
                     // If the key is an integer, only add the value
                     $attr[] = $value;
                 } else {
-                    // Otherwise, add the key-value pair as an attribute
-                    $attr[] = $key.'="'.$value.'"';
+                    // Otherwise, add the key-value pair as an attribute.
+                    // HTML-encode the value to prevent attribute-context XSS
+                    // (e.g. " breakout / event-handler injection).
+                    $attr[] = $key.'="'.htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8').'"';
                 }
             }
         }

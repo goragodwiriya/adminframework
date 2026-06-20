@@ -104,6 +104,10 @@ export const defaults = {
     wholeWord: false
   },
 
+  sourceView: {
+    tabToSpaces: 4
+  },
+
   aiWriter: {
     endpoint: '',
     maxContextLength: 12000,
@@ -111,7 +115,10 @@ export const defaults = {
       'left', 'center', 'right', 'justify',
       'top', 'bottom', 'middle', 'baseline',
       'float-left', 'float-right', 'float-center',
-      'block', 'inline', 'inline-block'
+      'block', 'inline', 'inline-block',
+      'text-left', 'text-center', 'text-right', 'text-justify',
+      'mx-auto', 'center-block',
+      'tablebody', 'table', 'border', 'data', 'fullwidth'
     ],
     defaultGeneratePrompt: '',
     defaultRewritePrompt: 'Rewrite this content in new words while preserving the important facts.',
@@ -125,7 +132,10 @@ export const defaults = {
       'left', 'center', 'right', 'justify',
       'top', 'bottom', 'middle', 'baseline',
       'float-left', 'float-right', 'float-center',
-      'block', 'inline', 'inline-block'
+      'block', 'inline', 'inline-block',
+      'text-left', 'text-center', 'text-right', 'text-justify',
+      'mx-auto', 'center-block',
+      'tablebody', 'table', 'border', 'data', 'fullwidth'
     ],
     removeHorizontalRules: true,
     removeIds: true,

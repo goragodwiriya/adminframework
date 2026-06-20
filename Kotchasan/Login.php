@@ -63,9 +63,8 @@ class Login extends KBase
                 if (isset($_SESSION[$key]->username)) {
                     self::$login_params['username'] = Text::username($_SESSION[$key]->username);
                 }
-                if (isset($_SESSION[$key]->password)) {
-                    self::$login_params['password'] = Text::password($_SESSION[$key]->password);
-                }
+                // Password is intentionally not restored from the session — it is
+                // never persisted there (avoids storing/replaying credentials).
             }
             self::$from_submit = $request->post('username')->exists();
         } elseif ($request->post('password')->exists()) {
@@ -85,7 +84,13 @@ class Login extends KBase
             } elseif (empty(self::$login_params['password']) && self::$from_submit) {
                 self::$login_message = Language::get('Please fill up this form');
                 self::$login_input = 'password';
-            } elseif (!self::$from_submit || (self::$from_submit && $request->isReferer())) {
+            } elseif (self::$from_submit && $request->isReferer()) {
+                // Only attempt the actual login when the user genuinely submitted the
+                // login form (and the request passes the referer/CSRF check). A plain
+                // page load or an unauthenticated API call (e.g. GET .../auth/me) must
+                // NOT reach login(): the password is never restored from the session
+                // (see above), so checkLogin() would always fail and record a bogus
+                // brute-force attempt, eventually locking the visitor out of the system.
                 $obj->login($request, self::$login_params);
             }
         }
@@ -130,19 +135,44 @@ class Login extends KBase
     public function login(Request $request, $loginParams)
     {
         $key = static::sessionKey();
+        $username = $loginParams['username'] ?? '';
+        $clientIp = $request->getClientIp();
+        $userAgent = (string) $request->server('HTTP_USER_AGENT', '');
+
+        // Brute-force protection (same DB-backed store as the API login path).
+        if (class_exists('\Gcms\LoginAttempt') && \Gcms\LoginAttempt::isLocked($username, $clientIp)) {
+            self::$login_input = 'username';
+            self::$login_message = Language::get('Too many failed login attempts. Please try again later.');
+            if (isset($_SESSION[$key])) {
+                unset($_SESSION[$key]);
+            }
+            return;
+        }
 
         // Check login against the database
         $login_result = $this->checkLogin($loginParams);
 
         if (is_array($login_result)) {
+            // Prevent session fixation: issue a fresh session ID on successful auth
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_regenerate_id(true);
+            }
             // Save login session
             $_SESSION[$key] = $login_result;
+            // Successful login clears the failed-attempt counter for this user.
+            if (class_exists('\Gcms\LoginAttempt')) {
+                \Gcms\LoginAttempt::clear($username, $clientIp);
+            }
         } else {
             // Login failed
             if (is_string($login_result)) {
                 // Error message
                 self::$login_input = self::$login_input === 'password' ? 'password' : 'username';
                 self::$login_message = $login_result;
+            }
+            // Record the failed attempt for brute-force throttling.
+            if (class_exists('\Gcms\LoginAttempt')) {
+                \Gcms\LoginAttempt::record($username, $clientIp, $userAgent);
             }
             // Logout: remove session and cookie
             if (isset($_SESSION[$key])) {
@@ -163,18 +193,28 @@ class Login extends KBase
     {
         $username = $loginParams['username'] ?? '';
         $password = $loginParams['password'] ?? '';
+        $expectedUser = (string) self::$cfg->get('username');
+        $expectedPass = (string) self::$cfg->get('password');
 
-        if ($username !== self::$cfg->get('username')) {
-            self::$login_input = 'username';
-            return 'not a registered user';
-        } elseif ($password !== self::$cfg->get('password')) {
-            self::$login_input = 'password';
-            return 'password incorrect';
+        // Verify the password in a timing-safe way. If the configured password
+        // is a password_hash() digest use password_verify(); otherwise compare
+        // plaintext with hash_equals (constant time) for backward compatibility.
+        if (preg_match('/^\$(2[aby]|argon2)/', $expectedPass)) {
+            $passwordOk = password_verify($password, $expectedPass);
+        } else {
+            $passwordOk = hash_equals($expectedPass, (string) $password);
         }
-        // Return the logged-in user information
+        // Always evaluate both checks so the response time / message does not
+        // reveal which field was wrong (prevents username enumeration).
+        $userOk = hash_equals($expectedUser, (string) $username);
+
+        if (!$userOk || !$passwordOk) {
+            self::$login_input = 'username';
+            return 'Username or password is invalid';
+        }
+        // Return the logged-in user information (password is NOT persisted)
         return (object) [
             'username' => $username,
-            'password' => $password,
             // Status: Admin
             'status' => 1
         ];

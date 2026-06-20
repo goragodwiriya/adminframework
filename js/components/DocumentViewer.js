@@ -182,8 +182,8 @@ class DocumentViewer {
           </div>
 
           <div class="toolbar-group workflow-actions" ${!this.options.enableMultiPartyWorkflow ? 'style="display: none;"' : ''}>
-            <button class="btn-primary workflow-btn" data-action="send-for-signature" title="Send for Signature">Send for Signature</button>
-            <button class="btn-secondary workflow-btn" data-action="save-draft" title="Save Draft">Save Draft</button>
+            <button class="btn btn-primary workflow-btn" data-action="send-for-signature" title="Send for Signature">Send for Signature</button>
+            <button class="btn btn-secondary workflow-btn" data-action="save-draft" title="Save Draft">Save Draft</button>
           </div>
         </div>
 
@@ -241,7 +241,7 @@ class DocumentViewer {
               <div class="comments-list"></div>
               <div class="comment-form">
                 <textarea placeholder="Add a comment..." class="comment-input"></textarea>
-                <button class="btn-primary add-comment">Add Comment</button>
+                <button class="btn btn-primary add-comment">Add Comment</button>
               </div>
             </div>
           </div>
@@ -986,9 +986,20 @@ class DocumentViewer {
     fieldElement.style.width = `${fieldData.width}px`;
     fieldElement.style.height = `${fieldData.height}px`;
 
+    // Escape the (possibly document-supplied) placeholder before interpolating
+    // it into the field markup. Rest of the template is static.
+    const esc = (v) => {
+      if (window.SecurityManager && typeof window.SecurityManager.escapeHtml === 'function') {
+        return window.SecurityManager.escapeHtml(v);
+      }
+      return String(v == null ? '' : v)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    };
+
     fieldElement.innerHTML = `
       <div class="field-content">
-        <div class="field-placeholder">${fieldData.placeholder}</div>
+        <div class="field-placeholder">${esc(fieldData.placeholder)}</div>
         <div class="field-value" style="display: none;"></div>
       </div>
       <div class="field-controls">

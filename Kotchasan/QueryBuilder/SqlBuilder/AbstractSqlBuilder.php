@@ -20,6 +20,37 @@ abstract class AbstractSqlBuilder implements SqlBuilderInterface
     protected array $quoteChars = ['`', '`'];
 
     /**
+     * Whether this dialect REQUIRES an ORDER BY for its LIMIT/paging clause.
+     * SQL Server's OFFSET..FETCH errors without ORDER BY; MySQL/PG/SQLite do not.
+     * SelectBuilder injects a stable fallback ORDER BY when this is true.
+     *
+     * @return bool
+     */
+    public function requiresOrderByForLimit(): bool
+    {
+        return false;
+    }
+
+    /**
+     * Apply a row LIMIT to an UPDATE/DELETE statement in the dialect's way.
+     * Default (MySQL / SQLite): append `LIMIT n`. SQL Server injects `TOP (n)`
+     * after the verb; PostgreSQL has no support and throws (so a ported query
+     * fails loudly instead of silently affecting every row).
+     *
+     * @param string   $query The full UPDATE/DELETE statement
+     * @param string   $verb  'UPDATE' or 'DELETE'
+     * @param int|null $limit
+     * @return string
+     */
+    public function applyUpdateDeleteLimit(string $query, string $verb, ?int $limit): string
+    {
+        if ($limit === null) {
+            return $query;
+        }
+        return $query.' LIMIT '.(int) $limit;
+    }
+
+    /**
      * The driver names this builder supports.
      *
      * @var array

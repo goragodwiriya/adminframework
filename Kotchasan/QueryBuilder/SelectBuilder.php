@@ -183,12 +183,17 @@ class SelectBuilder extends QueryBuilder
         }
 
         // Add ORDER BY clause using SqlBuilder
+        $hasLimit = $this->limit !== null || $this->offset !== null;
         if (!empty($this->orders)) {
             $query .= ' '.$sqlBuilder->buildOrderByClause($this->orders);
+        } elseif ($hasLimit && $sqlBuilder->requiresOrderByForLimit()) {
+            // SQL Server OFFSET..FETCH requires an ORDER BY; inject a stable
+            // no-op so paging without an explicit sort does not error.
+            $query .= ' ORDER BY (SELECT NULL)';
         }
 
         // Add LIMIT/OFFSET clause using SqlBuilder
-        if ($this->limit !== null || $this->offset !== null) {
+        if ($hasLimit) {
             $query .= ' '.$sqlBuilder->buildLimitClause($this->limit, $this->offset);
         }
 

@@ -19,6 +19,8 @@ use Gcms\Ai\Response;
  *   - OpenAI       https://api.openai.com/v1
  *   - Groq         https://api.groq.com/openai/v1  (free tier)
  *   - OpenRouter   https://openrouter.ai/api/v1    (free models available)
+ *   - Vercel       https://ai-gateway.vercel.sh/v1
+ *   - NVIDIA NIM   https://integrate.api.nvidia.com/v1
  *   - Ollama       http://localhost:11434/v1        (local, no API key)
  *   - LM Studio    http://localhost:1234/v1         (local, no API key)
  *
@@ -109,11 +111,7 @@ class OpenAiCompatible extends \Gcms\Ai\Driver
     }
 
     /**
-     * Generate one or more images using the OpenAI Images API.
-     *
-     * In this build, image generation is enabled only for the OpenAI provider.
-     * Other OpenAI-compatible providers can be added later once their response
-     * shapes and supported models are verified in-source.
+     * Generate one or more images
      *
      * Supported options:
      *   model, size, count
@@ -125,10 +123,6 @@ class OpenAiCompatible extends \Gcms\Ai\Driver
      */
     public function generateImage($prompt, array $options = [])
     {
-        if ($this->provider !== 'openai') {
-            return Response::fromError('Image generation is currently supported only with the OpenAI provider.');
-        }
-
         $prompt = trim((string) $prompt);
         if ($prompt === '') {
             return Response::fromError('Image prompt is required.');

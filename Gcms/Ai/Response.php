@@ -20,7 +20,7 @@ namespace Gcms\Ai;
  *
  * @since 1.0
  */
-class Response
+class Response implements \JsonSerializable
 {
     /**
      * Whether the request succeeded
@@ -35,6 +35,13 @@ class Response
      * @var string
      */
     public $content = '';
+
+    /**
+     * Chain-of-thought reasoning content (DeepSeek thinking mode).
+     *
+     * @var string
+     */
+    public $reasoningContent = '';
 
     /**
      * Generated images returned by the provider.
@@ -95,5 +102,27 @@ class Response
         $r->error = $message;
         $r->raw = $raw;
         return $r;
+    }
+
+    /**
+     * JSON representation for API clients.
+     * Deliberately OMITS $raw — the raw provider payload can contain internal
+     * request detail (model, endpoint, reflected headers) and must never be
+     * shipped to clients. Read ->raw directly for server-side logging only.
+     *
+     * @return array
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'success' => $this->success,
+            'content' => $this->content,
+            'reasoningContent' => $this->reasoningContent,
+            'images' => $this->images,
+            'model' => $this->model,
+            'inputTokens' => $this->inputTokens,
+            'outputTokens' => $this->outputTokens,
+            'error' => $this->error,
+        ];
     }
 }

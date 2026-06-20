@@ -388,6 +388,10 @@ const ReactiveManager = {
   setStateValue(state, path, value) {
     const clonedValue = this.deepClone(value);
     const parts = path.split('.');
+    // Prototype-pollution guard: refuse paths that traverse/write dangerous keys.
+    if (parts.some(key => key === '__proto__' || key === 'constructor' || key === 'prototype')) {
+      return;
+    }
     const lastKey = parts.pop();
     const target = parts.reduce((obj, key) => obj[key], state);
     if (target) {

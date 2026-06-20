@@ -77,6 +77,7 @@ class Controller extends ApiController
                 $config[$key] = self::$cfg->$key;
             }
         }
+        $config['web_title'] = strip_tags($config['web_title']);
 
         // Add logo URL if exists
         $img = DATA_FOLDER.'images/logo'.self::$cfg->stored_img_type;

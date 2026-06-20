@@ -4,8 +4,9 @@
  *
  * Authentication  : Bearer JWT validated via \Kotchasan\Jwt using the
  *                   jwt_secret from settings/config.php.
- * Path resolution : ROOT_PATH / DATA_FOLDER / WEB_URL constants
- *                   defined by load.php (Kotchasan bootstrap).
+ * Path resolution : ROOT_PATH / DATA_FOLDER — uploads live under …/images;
+ *                   optional read-only "Prepared file" tab reads …/prepared
+ *                   (see presetStorageFolder in config.php; not auto-created).
  * Config          : js/components/editor/php/config.php (file-storage
  *                   settings only — auth and paths are handled here).
  *
@@ -31,6 +32,11 @@ $gcmsSettings = include ROOT_PATH.'settings/config.php';
 // WEB_URL    = full URL to project root (scheme + host + path, trailing slash)
 $config['baseDir'] = ROOT_PATH.DATA_FOLDER.'images';
 $config['webUrl'] = WEB_URL.DATA_FOLDER.'images';
+
+// Optional read-only library for the "Prepared file" tab (separate from uploads)
+$presetFolder = isset($config['presetStorageFolder']) ? trim((string) $config['presetStorageFolder'], '/\\') : 'prepared';
+$config['presetBaseDir'] = ROOT_PATH.DATA_FOLDER.$presetFolder;
+$config['presetWebUrl'] = WEB_URL.DATA_FOLDER.$presetFolder;
 
 // ── Override image config from Gcms\Config (runtime serialized values) ────────
 // stored_img_size  → imageMaxWidth  (Gcms default: 800)
@@ -453,6 +459,13 @@ try {
         'maxFileSize' => $config['maxFileSize'],
         'allowedExtensions' => $config['allowedExtensions'] ?? null
     ]);
+    $preparedFiles = new FileBrowserFiles([
+        'baseDir' => $config['presetBaseDir'],
+        'webUrl' => $config['presetWebUrl'],
+        'maxFileSize' => $config['maxFileSize'],
+        'allowedExtensions' => $config['allowedExtensions'] ?? null,
+        'createBaseDir' => false,
+    ]);
 } catch (Exception $e) {
     sendError($e->getMessage(), 500);
 }
@@ -477,9 +490,9 @@ if (in_array($action, $writeActions) && $uploadMinStatus > 0) {
 try {
     switch ($action) {
         case 'get_preset_categories':
-            // Scan actual subdirectories in baseDir as categories
+            // Subfolders under presetBaseDir only (read-only library, optional on disk)
             $categories = [];
-            $rootResult = $files->getFolderTree('/', 1);
+            $rootResult = $preparedFiles->getFolderTree('/', 1);
             if (is_array($rootResult)) {
                 foreach ($rootResult as $folder) {
                     $categories[] = [
@@ -489,10 +502,6 @@ try {
                     ];
                 }
             }
-            // Fallback to config categories if no real folders found
-            if (empty($categories)) {
-                $categories = $config['presetCategories'];
-            }
             $result = [
                 'success' => true,
                 'data' => ['categories' => $categories]
@@ -500,18 +509,26 @@ try {
             break;
 
         case 'get_presets':
-            $category = getParam('category', '');
-            $presetsPath = ($category && $category !== 'all') ? '/'.$category : '/';
-            $presetsResult = $files->getFiles($presetsPath);
+            $category = trim((string) getParam('category', ''));
+            // Prepared files: only inside named subfolders (no root "all" listing)
+            if ($category === '' || strcasecmp($category, 'all') === 0) {
+                $result = [
+                    'success' => true,
+                    'data' => ['files' => [], 'path' => '/']
+                ];
+                break;
+            }
+            $presetsPath = '/'.$category;
+            $presetsResult = $preparedFiles->getFiles($presetsPath);
             if (!isset($presetsResult['error'])) {
-                $presetFiles = array_values(array_filter(
+                $presetFileItems = array_values(array_filter(
                     $presetsResult['items'] ?? [],
                     fn($item) => $item['type'] !== 'folder'
                 ));
                 $result = [
                     'success' => true,
                     'data' => [
-                        'files' => $presetFiles,
+                        'files' => $presetFileItems,
                         'path' => $presetsResult['path'] ?? $presetsPath
                     ]
                 ];

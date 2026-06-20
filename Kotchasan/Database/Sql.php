@@ -606,12 +606,13 @@ class Sql
             $condition = '';
         }
 
-        // Build the SQL expression to find next ID
-        $obj->sql = '(1 + IFNULL((SELECT MAX(`'.$field.'`) FROM '.$table_name.' AS X'.$condition.'), 0))';
+        // Build the SQL expression to find next ID. COALESCE is portable across
+        // all dialects (MySQL IFNULL is not); identifiers quoted per dialect.
+        $obj->sql = '(1 + COALESCE((SELECT MAX('.self::quoteIdentifier($field).') FROM '.$table_name.' AS X'.$condition.'), 0))';
 
         // Add an alias if provided
         if (isset($alias)) {
-            $obj->sql .= " AS `$alias`";
+            $obj->sql .= ' AS '.self::quoteIdentifier($alias);
         }
 
         // Return the SQL object
@@ -690,12 +691,35 @@ class Sql
      */
     public static function POSITION($substr, $str, $alias = null, $pos = 0)
     {
-        // Adjust substrings if they are not field names to be SQL-compatible
-        $substr = strpos($substr, '`') === false ? "'$substr'" : $substr;
-        $str = strpos($str, '`') === false ? "'$str'" : $str;
+        // Backtick = field reference (quote per dialect); otherwise a literal.
+        $substr = strpos($substr, '`') === false
+            ? "'".str_replace("'", "''", $substr)."'"
+            : self::quoteIdentifier(trim($substr, '`'));
+        $str = strpos($str, '`') === false
+            ? "'".str_replace("'", "''", $str)."'"
+            : self::quoteIdentifier(trim($str, '`'));
+        $pos = (int) $pos;
 
-        // Build the SQL expression for LOCATE() with optional alias and position
-        $sql = "LOCATE($substr, $str".(empty($pos) ? ')' : ", $pos").($alias ? ' AS '.self::quoteIdentifier($alias) : '');
+        // Emit the right substring-position function per database dialect.
+        switch (self::getDatabaseType()) {
+            case 'mssql':
+                $sql = empty($pos) ? "CHARINDEX($substr, $str)" : "CHARINDEX($substr, $str, $pos)";
+                break;
+            case 'postgresql':
+                // STRPOS has no start-position argument (pos ignored when set).
+                $sql = "STRPOS($str, $substr)";
+                break;
+            case 'sqlite':
+                $sql = "INSTR($str, $substr)";
+                break;
+            case 'mysql':
+            default:
+                $sql = empty($pos) ? "LOCATE($substr, $str)" : "LOCATE($substr, $str, $pos)";
+                break;
+        }
+        if ($alias) {
+            $sql .= ' AS '.self::quoteIdentifier($alias);
+        }
 
         // Assuming self::create() constructs or modifies a query or model object
         return self::create($sql);

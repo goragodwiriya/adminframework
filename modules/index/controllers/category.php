@@ -34,7 +34,7 @@ class Controller extends ApiController
     protected $categories = [];
 
     /**
-     * GET /api/index/categories/get
+     * GET /api/index/category/get
      * Get Category details by ID
      *
      * @param Request $request
@@ -83,7 +83,7 @@ class Controller extends ApiController
     }
 
     /**
-     * POST /api/index/categories/save
+     * POST /api/index/category/save
      * Save category (create or update)
      *
      * @param Request $request

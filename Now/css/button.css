@@ -1,4 +1,5 @@
 .btn {
+  display: inline-flex;
   border-style: solid;
   border-color: var(--color-border);
   border-width: var(--button-border-width);
@@ -7,6 +8,7 @@
   border-radius: var(--button-border-radius);
   color: var(--color-text);
   min-width: var(--input-height);
+  white-space: nowrap;
 }
 .btn[class*=" btn-"]:not(.text):hover,
 .btn[class^="btn-"]:not(.text):hover {

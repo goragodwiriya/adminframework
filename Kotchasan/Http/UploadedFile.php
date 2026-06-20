@@ -117,6 +117,8 @@ class UploadedFile implements UploadedFileInterface
             throw new \InvalidArgumentException('Invalid path provided for move operation');
         }
 
+        $this->assertSafeTargetPath($targetPath);
+
         $targetDirectory = dirname($targetPath);
         if (!is_dir($targetDirectory) || !is_writable($targetDirectory)) {
             throw new \RuntimeException('The target directory is not writable');
@@ -136,6 +138,35 @@ class UploadedFile implements UploadedFileInterface
         }
 
         $this->moved = true;
+    }
+
+    /**
+     * Validate a destination path before writing an uploaded file to it.
+     * Rejects null bytes / control characters and directory-traversal
+     * sequences ("..") that could let a client-derived filename escape the
+     * intended upload directory.
+     *
+     * @param string $targetPath
+     * @throws \InvalidArgumentException
+     */
+    protected function assertSafeTargetPath($targetPath)
+    {
+        // Null byte / control-character injection
+        if (preg_match('/[\x00-\x1f]/', $targetPath)) {
+            throw new \InvalidArgumentException('Invalid characters in target path');
+        }
+        // Directory traversal: reject any ".." path segment
+        $normalized = str_replace('\\', '/', $targetPath);
+        foreach (explode('/', $normalized) as $segment) {
+            if ($segment === '..') {
+                throw new \InvalidArgumentException('Path traversal detected in target path');
+            }
+        }
+        // The basename must be non-empty and must not itself be a dot-path
+        $base = basename($normalized);
+        if ($base === '' || $base === '.' || $base === '..') {
+            throw new \InvalidArgumentException('Invalid target filename');
+        }
     }
 
     /**
@@ -258,6 +289,18 @@ class UploadedFile implements UploadedFileInterface
     {
         if ($this->moved) {
             throw new \RuntimeException('Cannot move file; already moved!');
+        }
+        if ($this->error !== UPLOAD_ERR_OK) {
+            throw new \RuntimeException('Cannot copy file due to upload error');
+        }
+        if (!is_string($targetPath) || empty($targetPath)) {
+            throw new \InvalidArgumentException('Invalid path provided for copy operation');
+        }
+        $this->assertSafeTargetPath($targetPath);
+        // Confirm the source really is an HTTP upload (skipped under CLI for tests)
+        $sapi = PHP_SAPI;
+        if ((empty($sapi) || substr($sapi, 0, 3) !== 'cli') && !is_uploaded_file($this->file)) {
+            throw new \RuntimeException('Source is not a valid uploaded file');
         }
         $targetDir = dirname($targetPath);
         if (!is_dir($targetDir) || !is_writable($targetDir)) {

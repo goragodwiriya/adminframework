@@ -327,7 +327,8 @@ class MySQLDriver implements DriverInterface
             case 'CONCAT':
                 $fields = array_map([$this, 'formatFieldOrValue'], $parameters['fields']);
                 if (!empty($parameters['separator'])) {
-                    return "CONCAT_WS('".$parameters['separator']."', ".implode(', ', $fields).')'.$aliasStr;
+                    $sep = str_replace("'", "''", $parameters['separator']);
+                    return "CONCAT_WS('".$sep."', ".implode(', ', $fields).')'.$aliasStr;
                 }
                 return 'CONCAT('.implode(', ', $fields).')'.$aliasStr;
 
@@ -335,7 +336,7 @@ class MySQLDriver implements DriverInterface
                 $distinct = !empty($parameters['distinct']) ? 'DISTINCT ' : '';
                 $fields = array_map([$this, 'formatFieldOrValue'], $parameters['fields']);
                 $concatFields = implode(', ', $fields);
-                $separator = $parameters['separator'] ?? ',';
+                $separator = str_replace("'", "''", $parameters['separator'] ?? ',');
                 $orderClause = '';
 
                 if (!empty($parameters['order'])) {
@@ -415,7 +416,8 @@ class MySQLDriver implements DriverInterface
                 return 'WEEK('.$this->quoteIdentifier($parameters['column']).')'.$aliasStr;
 
             case 'DATE_FORMAT':
-                return 'DATE_FORMAT('.$this->quoteIdentifier($parameters['column']).", '".$parameters['format']."')".$aliasStr;
+                $fmt = str_replace("'", "''", $parameters['format']);
+                return 'DATE_FORMAT('.$this->quoteIdentifier($parameters['column']).", '".$fmt."')".$aliasStr;
 
             case 'LENGTH':
                 return 'LENGTH('.$this->quoteIdentifier($parameters['column']).')'.$aliasStr;

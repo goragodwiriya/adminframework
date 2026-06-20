@@ -50,20 +50,29 @@ figure.center,
 .flex {
   display: flex;
 }
+.inline-flex {
+  display: inline-flex;
+}
+.flex.row {
+  flex-direction: row;
+}
 .flex.column {
   flex-flow: column;
+}
+.flex.reverse {
+  flex-direction: row-reverse;
+}
+.flex.column-reverse {
+  flex-direction: column-reverse;
 }
 .flex.wrap {
   flex-wrap: wrap;
 }
-.flex-1 {
-  flex: 1 1 0%;
+.flex.nowrap {
+  flex-wrap: nowrap;
 }
-.flex-2 {
-  flex: 2 1 0%;
-}
-.flex-3 {
-  flex: 3 1 0%;
+.flex.wrap-reverse {
+  flex-wrap: wrap-reverse;
 }
 /* Common flex helpers */
 .flex-auto {
@@ -77,6 +86,12 @@ figure.center,
 }
 .flex-grow {
   flex-grow: 1;
+}
+.flex-shrink-0 {
+  flex-shrink: 0;
+}
+.flex-shrink {
+  flex-shrink: 1;
 }
 /* Flex-basis utilities: set explicit basis (works with flex-grow helpers) */
 .flex-basis-0 {
@@ -142,51 +157,122 @@ figure.center,
 .gap-32 {
   gap: var(--space-32);
 }
+/* Main-axis alignment (justify-content) */
+.flex.justify-start {
+  justify-content: flex-start;
+}
+.flex.justify-end {
+  justify-content: flex-end;
+}
+.flex.justify-center {
+  justify-content: center;
+}
 .flex.justify-between,
 .flex.fullwidth {
   justify-content: space-between;
 }
-.flex.left,
-.flex > .left {
-  margin-left: auto;
+.flex.justify-around {
+  justify-content: space-around;
 }
-.flex.right,
-.flex > .right {
-  margin-left: auto;
+.flex.justify-evenly {
+  justify-content: space-evenly;
 }
 figure.center,
 .flex > .center {
   margin-left: auto;
   margin-right: auto;
 }
-.right {
-  text-align: right !important;
-}
-.left {
-  text-align: left !important;
-}
-.center {
-  text-align: center !important;
-  justify-content: center;
-}
-.justify {
-  text-align: justify !important;
-}
-.top {
-  vertical-align: top;
+/* Cross-axis alignment (align-items) */
+.flex.top {
   align-items: flex-start;
 }
-.bottom {
-  vertical-align: bottom;
+.flex.bottom {
   align-items: flex-end;
 }
-.middle {
-  vertical-align: middle;
+.flex.middle {
   align-items: center;
 }
-.baseline {
-  vertical-align: baseline;
+.flex.baseline {
   align-items: baseline;
+}
+.flex.stretch {
+  align-items: stretch;
+}
+/* Shortcuts: both main and cross axis */
+.flex.right {
+  justify-content: flex-end;
+  align-items: flex-end;
+}
+.flex.left {
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+figure.center,
+.flex.center {
+  justify-content: center;
+  align-items: center;
+}
+/* Per-item alignment inside flex container */
+.self-start {
+  align-self: flex-start;
+}
+.self-end {
+  align-self: flex-end;
+}
+.self-center {
+  align-self: center;
+}
+.self-stretch {
+  align-self: stretch;
+}
+.self-baseline {
+  align-self: baseline;
+}
+/* Explicit alignment utilities */
+.text-left {
+  text-align: left !important;
+}
+.text-center {
+  text-align: center !important;
+}
+.text-right {
+  text-align: right !important;
+}
+.text-justify {
+  text-align: justify !important;
+}
+.mx-auto,
+.center-block {
+  margin-left: auto;
+  margin-right: auto;
+  margin-inline: auto;
+}
+.center-block {
+  display: block;
+}
+.left:not(.flex) {
+  text-align: left !important;
+}
+.right:not(.flex) {
+  text-align: right !important;
+}
+.center:not(.flex) {
+  text-align: center !important;
+}
+.justify:not(.flex) {
+  text-align: justify !important;
+}
+.top:not(.flex) {
+  vertical-align: top;
+}
+.bottom:not(.flex) {
+  vertical-align: bottom;
+}
+.middle:not(.flex) {
+  vertical-align: middle;
+}
+.baseline:not(.flex) {
+  vertical-align: baseline;
 }
 .float-left {
   float: left;
@@ -199,6 +285,12 @@ figure.center,
   margin-right: auto;
   float: none;
   display: table;
+}
+.reverse {
+  direction: rtl;
+}
+.reverse > div {
+  direction: ltr;
 }
 .block {
   display: block;
@@ -262,6 +354,9 @@ figure.center,
   }
   .stack-mobile {
     grid-template-columns: 1fr !important;
+  }
+  .reverse {
+    direction: ltr;
   }
 }
 .width5 {

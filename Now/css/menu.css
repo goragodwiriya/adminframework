@@ -37,13 +37,22 @@ body.topmenu-open {
   padding: var(--space-2) var(--space-3);
   text-decoration: none;
   cursor: pointer;
-  white-space: nowrap;
   transition: all var(--transition-duration) var(--transition-timing);
   border: none;
   background: none;
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+.sidemenu li > button > span,
+.sidemenu li > a > span,
+.topmenu li > button > span,
+.topmenu li > a > span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  -webkit-line-clamp: 1;
 }
 .btn.dropdown,
 .sidemenu li > button,
@@ -98,6 +107,7 @@ body.topmenu-open {
 .topmenu li > button:not(.menu-toggle),
 .topmenu li > a {
   width: 100%;
+  text-align: inherit;
 }
 .dropdown a {
   padding: var(--space-2) var(--space-4);

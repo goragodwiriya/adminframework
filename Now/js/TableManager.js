@@ -4403,6 +4403,24 @@ const TableManager = {
     table.paginationWrapper.appendChild(button);
   },
 
+  // Entity-encode an untrusted scalar cell value before inlining it into a
+  // template HTML string. Uses the central SecurityManager when available.
+  escapeCellValue(value) {
+    const sm = window.SecurityManager;
+    if (sm && typeof sm.escapeHtml === 'function') return sm.escapeHtml(value);
+    const s = value == null ? '' : String(value);
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+  },
+
+  // Sanitize HTML that a column explicitly opted into (a {html} cell value)
+  // before it reaches innerHTML. Falls back to full escaping if no sanitizer.
+  sanitizeCellHtml(html) {
+    const sm = window.SecurityManager;
+    if (sm && typeof sm.sanitizeHtml === 'function') return sm.sanitizeHtml(html);
+    return this.escapeCellValue(html);
+  },
+
   renderCell(table, tableId, row, field, attributes, rowData, index) {
     const cell = document.createElement('td');
     cell.dataset.field = field;
@@ -4502,7 +4520,15 @@ const TableManager = {
         // 1) Replace ${key} placeholders with row values
         let template = attributes.template.replace(/\${(\w+)}/g, (match, key) => {
           const v = rowData[key];
-          return v !== undefined ? normalizeValue(v) : match;
+          if (v === undefined) return match;
+          // The template markup itself is developer-authored (trusted), but the
+          // row values interpolated into it are untrusted server data. Escape
+          // scalars; sanitize explicit {html} opt-in values. Prevents XSS via
+          // table data flowing into innerHTML at line ~4576.
+          if (v && typeof v === 'object' && v.html !== undefined) {
+            return this.sanitizeCellHtml(v.html);
+          }
+          return this.escapeCellValue(normalizeValue(v));
         });
 
         // 2) Run i18n interpolation on the resulting HTML string so tokens like
@@ -4594,9 +4620,10 @@ const TableManager = {
           // ignore translation errors for cell post-processing
         }
       } else {
-        // Default rendering - prefer HTML when original value had an html property
+        // Default rendering - prefer HTML when original value had an html property.
+        // Sanitize the opt-in HTML before it reaches innerHTML.
         if (rawValue && typeof rawValue === 'object' && rawValue.html !== undefined) {
-          cell.innerHTML = rawValue.html;
+          cell.innerHTML = this.sanitizeCellHtml(rawValue.html);
         } else {
           cell.textContent = primValue;
         }
@@ -6158,7 +6185,7 @@ const TableManager = {
 
   showLoading(table) {
     const tbody = table.element.querySelector('tbody');
-    tbody.innerHTML = `<tr><td colspan="100%" class="center">${Now.translate('Loading')}...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="100%" class="text-center">${Now.translate('Loading')}...</td></tr>`;
   },
 
   updateSelectedRows(table) {
@@ -6592,7 +6619,9 @@ const TableManager = {
 
         case 'number':
           const numberDecimals = getDecimals(0);
-          return new Intl.NumberFormat(options.locale, {
+          // Accept empty string locale by falling back to undefined (uses runtime default)
+          const nfLocale = options && options.locale ? options.locale : undefined;
+          return new Intl.NumberFormat(nfLocale, {
             minimumFractionDigits: numberDecimals,
             maximumFractionDigits: numberDecimals,
             useGrouping: options.useGrouping !== false
@@ -6608,7 +6637,8 @@ const TableManager = {
 
         case 'percent':
           const percentDecimals = getDecimals(0);
-          return new Intl.NumberFormat(options.locale, {
+          const pctLocale = options && options.locale ? options.locale : undefined;
+          return new Intl.NumberFormat(pctLocale, {
             style: 'percent',
             minimumFractionDigits: percentDecimals,
             maximumFractionDigits: percentDecimals

@@ -50,10 +50,9 @@ class MSSQLDriver implements DriverInterface
                 $options
             );
 
-            // Set specific MSSQL options
-            if (isset($config['charset'])) {
-                $this->pdo->exec("SET NAMES '{$config['charset']}'");
-            }
+            // Note: "SET NAMES" is MySQL/PostgreSQL syntax and is INVALID on SQL
+            // Server (it would throw). Encoding for sqlsrv is controlled via the
+            // DSN / PDO attributes, so there is nothing to run here.
 
             return true;
         } catch (\PDOException $e) {
@@ -320,6 +319,54 @@ class MSSQLDriver implements DriverInterface
     }
 
     /**
+     * Translate a MySQL DATE_FORMAT() string to a SQL Server FORMAT() .NET
+     * custom-format string. Single pass; literal letters are wrapped in
+     * backslash-escapes so FORMAT does not treat them as format specifiers.
+     *
+     * @param string $mysqlFormat
+     * @return string
+     */
+    protected function convertDateFormat(string $mysqlFormat): string
+    {
+        $map = [
+            '%Y' => 'yyyy', '%y' => 'yy', '%m' => 'MM', '%c' => 'M',
+            '%d' => 'dd', '%e' => 'd', '%H' => 'HH', '%k' => 'H',
+            '%h' => 'hh', '%I' => 'hh', '%l' => 'h', '%i' => 'mm',
+            '%s' => 'ss', '%S' => 'ss', '%p' => 'tt', '%M' => 'MMMM',
+            '%b' => 'MMM', '%W' => 'dddd', '%a' => 'ddd', '%T' => 'HH:mm:ss',
+            '%r' => 'hh:mm:ss tt', '%%' => '%',
+        ];
+        $out = '';
+        $len = strlen($mysqlFormat);
+        for ($i = 0; $i < $len; $i++) {
+            if ($mysqlFormat[$i] === '%' && $i + 1 < $len && isset($map['%'.$mysqlFormat[$i + 1]])) {
+                $out .= $map['%'.$mysqlFormat[$i + 1]];
+                $i++;
+            } else {
+                $c = $mysqlFormat[$i];
+                $out .= ctype_alpha($c) ? '\\'.$c : $c;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Map a MySQL date unit to a valid SQL Server DATEADD/DATEDIFF datepart.
+     *
+     * @param string $unit
+     * @return string
+     */
+    protected function convertDateUnit(string $unit): string
+    {
+        $unit = strtoupper(rtrim(trim($unit), 'S'));
+        $map = [
+            'YEAR' => 'YEAR', 'QUARTER' => 'QUARTER', 'MONTH' => 'MONTH', 'WEEK' => 'WEEK',
+            'DAY' => 'DAY', 'HOUR' => 'HOUR', 'MINUTE' => 'MINUTE', 'SECOND' => 'SECOND',
+        ];
+        return $map[$unit] ?? 'DAY';
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function formatSqlFunction(string $type, array $parameters, ?string $alias): string
@@ -356,17 +403,20 @@ class MSSQLDriver implements DriverInterface
 
             case 'CONCAT':
                 $fields = array_map([$this, 'formatFieldOrValue'], $parameters['fields']);
+                // Use CONCAT()/CONCAT_WS() (SQL Server 2012+/2017+) instead of `+`,
+                // which does arithmetic on numerics and is NULL-unsafe.
                 if (!empty($parameters['separator'])) {
-                    // MSSQL doesn't have CONCAT_WS, simulate with + and separator
-                    return '('.implode(" + '".$parameters['separator']."' + ", $fields).')'.$aliasStr;
+                    $sep = str_replace("'", "''", $parameters['separator']);
+                    return "CONCAT_WS('".$sep."', ".implode(', ', $fields).')'.$aliasStr;
                 }
-                return '('.implode(' + ', $fields).')'.$aliasStr;
+                return 'CONCAT('.implode(', ', $fields).')'.$aliasStr;
 
             case 'GROUP_CONCAT':
-                $distinct = !empty($parameters['distinct']) ? 'DISTINCT ' : '';
+                // SQL Server STRING_AGG does NOT support DISTINCT and concatenates
+                // a single expression; CONCAT multiple fields and cast to text.
                 $fields = array_map([$this, 'formatFieldOrValue'], $parameters['fields']);
-                $concatFields = implode(' + ', $fields);
-                $separator = $parameters['separator'] ?? ',';
+                $concatFields = count($fields) > 1 ? 'CONCAT('.implode(', ', $fields).')' : $fields[0];
+                $separator = str_replace("'", "''", $parameters['separator'] ?? ',');
                 $orderClause = '';
 
                 if (!empty($parameters['order'])) {
@@ -374,7 +424,7 @@ class MSSQLDriver implements DriverInterface
                     $orderClause = ' WITHIN GROUP (ORDER BY '.implode(', ', array_map([$this, 'quoteIdentifier'], $orders)).')';
                 }
 
-                return 'STRING_AGG('.$distinct.$concatFields.", '".$separator."')".$orderClause.$aliasStr;
+                return 'STRING_AGG(CAST('.$concatFields." AS NVARCHAR(MAX)), '".$separator."')".$orderClause.$aliasStr;
 
             case 'COUNT':
                 $distinct = !empty($parameters['distinct']) ? 'DISTINCT ' : '';
@@ -408,18 +458,18 @@ class MSSQLDriver implements DriverInterface
                 return 'DATEDIFF(SECOND, '.$this->formatFieldOrValue($parameters['column2']).', '.$this->formatFieldOrValue($parameters['column1']).')'.$aliasStr;
 
             case 'TIMESTAMPDIFF':
-                return 'DATEDIFF('.$parameters['unit'].', '.$this->formatFieldOrValue($parameters['column1']).', '.$this->formatFieldOrValue($parameters['column2']).')'.$aliasStr;
+                return 'DATEDIFF('.$this->convertDateUnit((string) $parameters['unit']).', '.$this->formatFieldOrValue($parameters['column1']).', '.$this->formatFieldOrValue($parameters['column2']).')'.$aliasStr;
 
             case 'DATE_ADD':
-                return 'DATEADD('.strtolower($parameters['unit']).', '.(int) $parameters['interval'].', '.$this->formatFieldOrValue($parameters['column']).')'.$aliasStr;
+                return 'DATEADD('.$this->convertDateUnit((string) $parameters['unit']).', '.(int) $parameters['interval'].', '.$this->formatFieldOrValue($parameters['column']).')'.$aliasStr;
 
             case 'DATE_SUB':
-                return 'DATEADD('.strtolower($parameters['unit']).', -'.(int) $parameters['interval'].', '.$this->formatFieldOrValue($parameters['column']).')'.$aliasStr;
+                return 'DATEADD('.$this->convertDateUnit((string) $parameters['unit']).', -'.(int) $parameters['interval'].', '.$this->formatFieldOrValue($parameters['column']).')'.$aliasStr;
 
             case 'FIND_IN_SET':
                 $val = $this->formatFieldOrValue($parameters['value']);
                 $col = $this->quoteIdentifier($parameters['column']);
-                return 'CHARINDEX(\',\' + '.$val.' + \',\', \',\' + CAST('.$col.' AS VARCHAR) + \',\')'.$aliasStr;
+                return 'CHARINDEX(\',\' + '.$val.' + \',\', \',\' + CAST('.$col.' AS VARCHAR(MAX)) + \',\')'.$aliasStr;
 
             case 'LPAD':
                 $len = (int) $parameters['length'];
@@ -438,7 +488,18 @@ class MSSQLDriver implements DriverInterface
                 return 'LEFT(CAST('.$this->quoteIdentifier($parameters['column']).' AS VARCHAR) + REPLICATE('."\'".$pad."\'".", ".$len.'), '.$len.')'.$aliasStr;
 
             case 'STR_TO_DATE':
-                return 'TRY_CONVERT(DATETIME, '.$this->formatFieldOrValue($parameters['value']).')'.$aliasStr;
+                // Map common MySQL formats to a SQL Server CONVERT style code so
+                // non-ISO inputs parse correctly (otherwise locale-dependent).
+                $styleMap = [
+                    '%Y-%m-%d %H:%i:%s' => 120, '%Y-%m-%d %H:%i' => 120, '%Y-%m-%d' => 120,
+                    '%d/%m/%Y' => 103, '%m/%d/%Y' => 101, '%d-%m-%Y' => 105, '%d.%m.%Y' => 104,
+                ];
+                $fmt = trim((string) ($parameters['format'] ?? ''));
+                $val = $this->formatFieldOrValue($parameters['value']);
+                if (isset($styleMap[$fmt])) {
+                    return 'TRY_CONVERT(DATETIME, '.$val.', '.$styleMap[$fmt].')'.$aliasStr;
+                }
+                return 'TRY_CONVERT(DATETIME, '.$val.')'.$aliasStr;
 
             case 'TIME':
                 return 'CONVERT(TIME, '.$this->quoteIdentifier($parameters['column']).')'.$aliasStr;
@@ -447,7 +508,8 @@ class MSSQLDriver implements DriverInterface
                 return 'DATEPART(WEEK, '.$this->quoteIdentifier($parameters['column']).')'.$aliasStr;
 
             case 'DATE_FORMAT':
-                return 'FORMAT('.$this->quoteIdentifier($parameters['column']).", '".$parameters['format']."')".$aliasStr;
+                $fmt = str_replace("'", "''", $this->convertDateFormat((string) $parameters['format']));
+                return 'FORMAT('.$this->quoteIdentifier($parameters['column']).", '".$fmt."')".$aliasStr;
 
             case 'LENGTH':
                 return 'LEN('.$this->quoteIdentifier($parameters['column']).')'.$aliasStr;

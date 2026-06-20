@@ -95,6 +95,10 @@ class Controller extends \Kotchasan\KBase
      */
     public static function arrayToOptions(array $array): array
     {
+        if (!is_array($array) && !is_object($array)) {
+            return [];
+        }
+
         $options = [];
         foreach ($array as $key => $value) {
             $options[] = [

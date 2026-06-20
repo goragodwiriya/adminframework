@@ -20,6 +20,28 @@ namespace Gcms;
 class Line extends \Kotchasan\KBase
 {
     /**
+     * Verify an inbound LINE webhook request.
+     * LINE signs the RAW request body with HMAC-SHA256 using the channel
+     * secret and sends it base64-encoded in the X-Line-Signature header.
+     * Call this BEFORE json_decode-ing the body, on the exact received bytes.
+     *
+     * @param string $rawBody   Raw request body (php://input)
+     * @param string $signature Value of the X-Line-Signature header
+     * @param string|null $channelSecret Override (defaults to config)
+     *
+     * @return bool True only if the signature is valid
+     */
+    public static function verifyWebhookSignature($rawBody, $signature, $channelSecret = null)
+    {
+        $secret = $channelSecret !== null ? $channelSecret : (string) self::$cfg->line_channel_secret;
+        if ($secret === '' || !is_string($signature) || $signature === '') {
+            return false;
+        }
+        $expected = base64_encode(hash_hmac('sha256', (string) $rawBody, $secret, true));
+        return hash_equals($expected, $signature);
+    }
+
+    /**
      * Send a raw LINE Messaging API request.
      *
      * @param string $url

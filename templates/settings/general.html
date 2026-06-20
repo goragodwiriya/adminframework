@@ -54,6 +54,24 @@
                 </span>
               </div>
             </fieldset>
+            <!-- Security Settings -->
+            <fieldset data-settings-group="security">
+              <legend class="icon-shield" data-i18n>Security Configuration</legend>
+              <div>
+                <label for="max_login_attempts" data-i18n>Max Login Attempts</label>
+                <span class="form-control icon-number">
+                  <input type="number" id="max_login_attempts" name="max_login_attempts" min="1" max="50" data-attr="value:max_login_attempts" placeholder="5">
+                </span>
+                <div class="comment" data-i18n>Number of failed login attempts before account lockout</div>
+              </div>
+              <div>
+                <label for="lockout_duration" data-i18n>Lockout Duration (minutes)</label>
+                <span class="form-control icon-clock">
+                  <input type="number" id="lockout_duration" name="lockout_duration" min="1" max="1440" data-attr="value:lockout_duration" placeholder="30">
+                </span>
+                <div class="comment" data-i18n>How long the account is locked after exceeding max attempts</div>
+              </div>
+            </fieldset>
             <!-- Registration Settings -->
             <fieldset>
               <legend class="icon-user" data-i18n>User</legend>

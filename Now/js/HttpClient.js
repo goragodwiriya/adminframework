@@ -700,13 +700,9 @@ const simpleFetch = {
         }
       }
 
-      // Attach Authorization header from localStorage token if present
-      try {
-        const token = localStorage.getItem('auth_token');
-        if (token) {
-          config.headers['Authorization'] = `Bearer ${token}`;
-        }
-      } catch (e) {}
+      // Auth token is sent automatically as the server-set httpOnly `auth_token`
+      // cookie (credentials default to 'same-origin'). The token is intentionally
+      // never read from JS storage — it must remain inaccessible to JavaScript.
 
       // Handle body
       if (config.body && typeof config.body === 'object' && !(config.body instanceof FormData)) {

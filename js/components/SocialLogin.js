@@ -14,7 +14,7 @@ const SocialLoginComponent = {
    */
   config: {
     // API endpoint
-    endpoint: 'api/index/social',
+    endpoint: '../api/index/social',
 
     // SDK URLs
     sdkUrls: {

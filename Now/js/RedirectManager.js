@@ -99,10 +99,14 @@ const RedirectManager = {
         this.storeIntendedRoute();
       }
 
-      // Show notification if configured
+      // Show notification if configured (use whichever notifier is available)
       if (config.showNotification && config.message) {
         const notificationType = this.getNotificationType(type);
-        AuthErrorHandler.showNotification(config.message, notificationType);
+        if (window.AuthErrorHandler?.showNotification) {
+          AuthErrorHandler.showNotification(config.message, notificationType);
+        } else if (window.NotificationManager?.[notificationType]) {
+          NotificationManager[notificationType](config.message);
+        }
       }
 
       // Determine target URL
@@ -136,7 +140,21 @@ const RedirectManager = {
   getRedirectConfig(type, options) {
     const defaultConfig = this.defaults[type] || this.defaults.not_found;
     const routerConfig = window.RouterManager?.config?.auth?.redirects || {};
-    const typeConfig = routerConfig[type] || {};
+
+    // App configs declare redirect targets with camelCase keys and plain string
+    // values (e.g. afterLogin: '/projects/'). Map our internal snake_case types
+    // onto those keys so a single config drives every redirect.
+    const keyMap = {
+      auth_required: 'unauthenticated',
+      forbidden: 'forbidden',
+      after_login: 'afterLogin',
+      after_logout: 'afterLogout',
+      guest_only: 'afterLogin'
+    };
+    const configured = routerConfig[keyMap[type]];
+    const typeConfig = (typeof configured === 'string' && configured !== '')
+      ? {target: configured}
+      : (configured && typeof configured === 'object' ? configured : {});
 
     return {
       ...defaultConfig,
@@ -151,10 +169,12 @@ const RedirectManager = {
   async resolveTarget(config, options) {
     let target = config.target;
 
-    // Check for intended route (for after_login)
+    // Check for intended route (for after_login). Consume it (clear) so a later
+    // login doesn't reuse a stale destination.
     if (config.checkIntended) {
       const intended = this.getIntendedRoute();
       if (intended) {
+        this.clearIntendedRoute();
         target = intended.path;
 
         // Add query parameters if preserved
@@ -200,13 +220,26 @@ const RedirectManager = {
    * Perform the actual redirect
    */
   async performRedirect(targetUrl, config, options) {
+    // Use the SPA router only when it is actually active (admin SPA). In normal
+    // page mode (router disabled, e.g. the public site) fall through to a full
+    // page navigation. This is what keeps both modes consistent.
     const router = window.RouterManager;
-    const useRouter = options.useRouter !== false && router;
+    const useRouter = options.useRouter !== false && !!router?.state?.initialized;
 
     if (useRouter) {
       try {
+        // The router navigates by route path (relative to its base). Strip the
+        // base from an absolute same-origin target so e.g. base '/projects/admin'
+        // + target '/projects/admin/' becomes the home route '/'.
+        let routePath = targetUrl;
+        const base = router.config?.base;
+        if (base && base !== '/' && typeof routePath === 'string' && routePath.startsWith(base)) {
+          routePath = routePath.slice(base.length) || '/';
+          if (!routePath.startsWith('/')) routePath = '/' + routePath;
+        }
+
         // Use router for navigation
-        const result = await router.navigate(targetUrl, {}, {
+        const result = await router.navigate(routePath, {}, {
           replace: options.replace !== false,
           skipAuthCheck: true,
           source: 'redirect'
@@ -271,6 +304,17 @@ const RedirectManager = {
    * Get stored intended route
    */
   getIntendedRoute() {
+    // 1) Explicit ?redirect= / ?return_to= on the current URL (deep links, or a
+    //    user sent to /login?redirect=... directly).
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get('redirect') || params.get('return_to');
+      if (q && this.isSafeIntendedPath(q)) {
+        return {path: q, query: '', hash: ''};
+      }
+    } catch (e) { /* ignore */ }
+
+    // 2) Route stored by the auth guard / login flow when the user was bounced.
     try {
       const stored = sessionStorage.getItem('auth_intended_route');
       if (!stored) return null;
@@ -284,11 +328,23 @@ const RedirectManager = {
         return null;
       }
 
-      return route;
+      return (route && this.isSafeIntendedPath(route.path)) ? route : null;
     } catch (error) {
       console.warn('[RedirectManager] Failed to get intended route:', error);
       return null;
     }
+  },
+
+  /**
+   * A path is safe to redirect to only if it is a same-origin relative path and
+   * is not itself an auth page (prevents open-redirects and login loops).
+   */
+  isSafeIntendedPath(path) {
+    if (typeof path !== 'string' || path === '') return false;
+    if (/^[a-z][a-z0-9+.-]*:/i.test(path)) return false; // has a scheme (http:, javascript:, ...)
+    if (path.startsWith('//')) return false;              // protocol-relative
+    if (!path.startsWith('/')) return false;              // must be an absolute same-origin path
+    return this.shouldStoreAsIntended(path);              // not /login, /register, /logout, ...
   },
 
   /**

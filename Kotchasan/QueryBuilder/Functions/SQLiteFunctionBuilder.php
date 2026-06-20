@@ -102,6 +102,7 @@ class SQLiteFunctionBuilder extends AbstractSQLFunctionBuilder
      */
     public function jsonExtract(string $column, string $path): string
     {
+        $path = $this->escapeJsonPath($path);
         return "JSON_EXTRACT({$column}, '\$.{$path}')";
     }
 
@@ -114,15 +115,18 @@ class SQLiteFunctionBuilder extends AbstractSQLFunctionBuilder
      */
     public function textSearch($columns, string $query): string
     {
+        // Escape both the quote (literal breakout) and the LIKE metacharacters.
+        $query = $this->escapeStringLiteral($query);
+        $query = str_replace(['%', '_'], ['\\%', '\\_'], $query);
         if (is_array($columns)) {
             $conditions = [];
             foreach ($columns as $column) {
-                $conditions[] = "{$column} LIKE '%{$query}%'";
+                $conditions[] = "{$column} LIKE '%{$query}%' ESCAPE '\\'";
             }
             return "(".implode(' OR ', $conditions).")";
         }
 
-        return "{$columns} LIKE '%{$query}%'";
+        return "{$columns} LIKE '%{$query}%' ESCAPE '\\'";
     }
 
     /**

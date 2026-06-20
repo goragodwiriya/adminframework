@@ -52,8 +52,6 @@
   --notification-info-text: #bfdbfe;
   --notification-info-border: #1e40af;
   /* Dialog/Modal Override */
-  --dialog-bg: #1e293b;
-  --dialog-text: #f8fafc;
   --dialog-border: rgba(255, 255, 255, 0.1);
   --dialog-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
   --dialog-overlay: rgba(0, 0, 0, 0.7);
@@ -63,7 +61,6 @@
   --input-text: #f8fafc;
   --input-placeholder: #64748b;
   /* Table Overrides */
-  --table-bg: #0f172a;
   --table-border-color: #334155;
   --table-header-bg: #1e293b;
   --table-header-shadow: rgba(0, 0, 0, 0.7);
@@ -83,7 +80,7 @@
   --pagination-active-color: #ffffff;
   --pagination-active-border-color: #3b82f6;
   /* Card Elements */
-  --card-bg: #1e293b;
+  --card-bg: rgba(255, 255, 255, 0.1);
   --card-border: #334155;
   --card-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
   /* Tabs */

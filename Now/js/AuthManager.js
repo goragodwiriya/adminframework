@@ -126,43 +126,17 @@ const AuthManager = {
   },
 
   rehydrateAccessToken() {
+    // No-op under cookie-based auth: the access token is an httpOnly cookie that
+    // JavaScript cannot (and must not) read. Session state is restored from the
+    // server via checkAuthStatus() -> /verify, which relies on that cookie.
     try {
-      const tokenService = this.ensureTokenService();
-      const cookieName = this.config.token.cookieName;
-
-      let token = null;
-
-      if (tokenService?.getCookie) {
-        token = tokenService.getCookie(cookieName);
+      if (typeof ApiService?.clearAccessToken === 'function') {
+        ApiService.clearAccessToken();
       }
-
-      if (!token) {
-        if (typeof ApiService?.clearAccessToken === 'function') {
-          ApiService.clearAccessToken();
-        }
-        return null;
-      }
-
-      // Check if token is expired
-      if (typeof tokenService?.isTokenExpired === 'function') {
-        if (tokenService.isTokenExpired(token)) {
-          tokenService.remove?.();
-          if (typeof ApiService?.clearAccessToken === 'function') {
-            ApiService.clearAccessToken();
-          }
-          return null;
-        }
-      }
-
-      if (typeof ApiService?.setAccessToken === 'function') {
-        ApiService.setAccessToken(token);
-      }
-
-      return token;
     } catch (error) {
-      console.error('AuthManager: Failed to rehydrate access token', error);
-      return null;
+      // ignore
     }
+    return null;
   },
 
   // --- Token helpers ----------------------------------------------------
@@ -373,39 +347,8 @@ const AuthManager = {
     return null;
   },
 
-  async ensureAccessToken(tokenCandidate, options = {}) {
-    const {user = null} = options;
-
-    if (!tokenCandidate) {
-      throw new Error('No access token provided - authentication required');
-    }
-
-    // Set in ApiService memory for immediate use
-    if (typeof ApiService?.setAccessToken === 'function') {
-      ApiService.setAccessToken(tokenCandidate)
-    }
-
-    // Store in cookie for persistence across reloads
-    try {
-      const tokenService = this.ensureTokenService();
-      if (tokenService) {
-        const cookieOptions = this.buildTokenCookieOptions(tokenCandidate);
-        const success = tokenService.store(tokenCandidate, {
-          user: user || this.state.user,
-          timestamp: Date.now(),
-          cookieOptions
-        });
-
-        if (!success) {
-          console.warn('AuthManager: Failed to store token in cookie');
-        }
-      }
-    } catch (err) {
-      console.error('AuthManager: TokenService failed to store token', err);
-    }
-
-    return tokenCandidate;
-  },
+  // (ensureAccessToken removed) Access tokens are never stored client-side under
+  // cookie-based auth — the server's httpOnly cookie is the sole token store.
 
   // --- Lifecycle ---------------------------------------------------------
   isInitialized() {
@@ -439,11 +382,13 @@ const AuthManager = {
     // Attempt to restore any previously stored access token before running auth checks
     this.rehydrateAccessToken();
 
-    // Ensure ApiService will send Authorization headers
+    // Cookie-based auth: the token lives only in the server-set httpOnly cookie
+    // (auto-sent same-origin). ApiService must NOT attach an Authorization header
+    // or read the token from JS storage.
     if (window.ApiService && typeof ApiService.config === 'object') {
       ApiService.config.security = ApiService.config.security || {};
-      ApiService.config.security.bearerAuth = true;
-      ApiService.config.security.authStrategy = 'hybrid';
+      ApiService.config.security.bearerAuth = false;
+      ApiService.config.security.authStrategy = 'cookie';
     }
 
     if (window.SecurityManager) {
@@ -534,16 +479,26 @@ const AuthManager = {
             }
           }
 
-          // Perform logout and redirect
-          await this.logout(false);
-          this.redirectTo(this.config.redirects.unauthorized);
+          // Session no longer valid: clear it (without its own redirect) and send
+          // the user to login through the single redirect authority, which stores
+          // the current route so they return here after re-authenticating.
+          await this.logout(false, {preventRedirect: true});
+          if (window.RedirectManager?.requireAuth) {
+            await RedirectManager.requireAuth();
+          } else {
+            this.redirectTo(this.config.redirects.unauthorized);
+          }
 
           // Return the response to prevent further processing
           return errorOrResponse;
         }
 
         if (status === 403) {
-          this.redirectTo(this.config.redirects.forbidden);
+          if (window.RedirectManager?.forbidden) {
+            await RedirectManager.forbidden();
+          } else {
+            this.redirectTo(this.config.redirects.forbidden);
+          }
           return errorOrResponse;
         }
 
@@ -854,24 +809,20 @@ const AuthManager = {
   async setAuthenticatedUser(userData, options = {}) {
     try {
       const user = this.resolveUserFromData(userData);
-      const token = this.resolveTokenFromData(userData);
 
       if (!user) {
         throw new Error('No user data found in authentication response');
-      }
-
-      if (!token) {
-        throw new Error('No access token found in authentication response');
       }
 
       this.state.authenticated = true;
       this.state.user = user;
       this.state.error = null;
 
-      // Store token in memory and cookie
-      const ensuredToken = await this.ensureAccessToken(token, {user});
+      // The access token is delivered only as an httpOnly cookie by the server —
+      // there is nothing to store client-side. Authentication is proven by the
+      // presence of a valid `user` plus the cookie the browser now holds.
 
-      // Store user data for persistence
+      // Store user data for persistence (non-sensitive display cache only)
       const userDataToStore = {
         ...user,
         timestamp: Date.now()
@@ -899,7 +850,7 @@ const AuthManager = {
         success: true,
         user: this.state.user,
         authenticated: true,
-        token: ensuredToken
+        token: null
       };
     } catch (error) {
       console.error('AuthManager: Failed to set authenticated user:', error.message);
@@ -927,13 +878,14 @@ const AuthManager = {
       }
 
       if (!options.preventRedirect) {
-        // Force deterministic post-login landing route.
-        const redirectTo = options.redirectTo || this.config.redirects.afterLogin || '/';
-        try {
-          sessionStorage.removeItem('intended_url');
-          sessionStorage.removeItem('auth_intended_route');
-        } catch (e) {}
-        this.redirectTo(redirectTo);
+        // Post-login redirect via the single authority (intended route, else the
+        // app's configured home; correct for SPA and normal modes). Falls back
+        // to redirectTo if RedirectManager is unavailable.
+        if (window.RedirectManager?.afterLogin) {
+          await RedirectManager.afterLogin(options.redirectTo ? {target: options.redirectTo, checkIntended: false} : {});
+        } else {
+          this.redirectTo(options.redirectTo || this.config.redirects.afterLogin || '/');
+        }
       }
 
       return {
@@ -1028,8 +980,14 @@ const AuthManager = {
       this.emit('auth:logout', {timestamp: Date.now()});
 
       if (!options.preventRedirect) {
-        const redirectTo = options.redirectTo || this.config.redirects.afterLogout;
-        this.redirectTo(redirectTo);
+        // Single redirect authority (RedirectManager); falls back to redirectTo.
+        if (options.redirectTo) {
+          this.redirectTo(options.redirectTo);
+        } else if (window.RedirectManager?.afterLogout) {
+          await RedirectManager.afterLogout();
+        } else {
+          this.redirectTo(this.config.redirects.afterLogout);
+        }
       }
     } catch (error) {
       this.handleError('Logout failed', error);
@@ -1049,14 +1007,8 @@ const AuthManager = {
       );
 
       if (response?.data?.success) {
-        const tokenFromData = this.resolveTokenFromData(response.data);
-        const tokenFromHeaders = this.extractTokenFromHeaders(response.headers);
-        const ensuredToken = await this.ensureAccessToken(tokenFromData || tokenFromHeaders, {
-          user: response.data.user || this.state.user,
-          allowFallback: false,
-          preferVerifyFallback: false
-        });
-
+        // The refreshed access token is set by the server as an httpOnly cookie;
+        // the client neither receives nor stores it.
         if (response.data.user) {
           this.state.user = response.data.user;
         }
@@ -1078,7 +1030,7 @@ const AuthManager = {
         this.setupAutoRefresh();
         this.emit('auth:token_refreshed', {
           user: this.state.user,
-          token: ensuredToken || tokenFromData || tokenFromHeaders || null,
+          token: null,
           timestamp: Date.now()
         });
 

@@ -1780,7 +1780,8 @@ class GraphRenderer {
     colorBox.style.marginRight = '5px';
 
     const label = document.createElement('span');
-    label.innerHTML = text;
+    // Legend labels are plain series/point names — render as text to avoid XSS.
+    label.textContent = text;
 
     item.appendChild(colorBox);
     item.appendChild(label);

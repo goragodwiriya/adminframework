@@ -361,6 +361,21 @@ class Request extends AbstractRequest implements ServerRequestInterface
 
         // Start the session if it's not already active and headers haven't been sent
         if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+            // Harden session handling: reject attacker-supplied session IDs and
+            // set secure cookie flags (HttpOnly, SameSite, Secure on HTTPS).
+            ini_set('session.use_strict_mode', '1');
+            $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                || (isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443)
+                || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+            $params = session_get_cookie_params();
+            session_set_cookie_params([
+                'lifetime' => $params['lifetime'],
+                'path' => $params['path'] ?: '/',
+                'domain' => $params['domain'],
+                'secure' => $secure,
+                'httponly' => true,
+                'samesite' => 'Lax',
+            ]);
             session_start();
         }
 
@@ -516,15 +531,32 @@ class Request extends AbstractRequest implements ServerRequestInterface
      */
     public static function getCurrentClientIp(): string
     {
-        if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
-            return $_SERVER['HTTP_CLIENT_IP'];
+        $remote = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+
+        // `Client-IP` and `X-Forwarded-For` are attacker-supplied request
+        // headers. Trust them ONLY when the direct peer (REMOTE_ADDR) is a
+        // configured trusted reverse proxy; otherwise an attacker could spoof
+        // any IP to bypass IP allow-lists and per-IP rate limiting.
+        $trusted = [];
+        if (defined('TRUSTED_PROXIES') && TRUSTED_PROXIES !== '') {
+            $trusted = array_filter(array_map('trim', explode(',', TRUSTED_PROXIES)));
+        }
+        if (empty($trusted) || !in_array($remote, $trusted, true)) {
+            return $remote;
         }
 
+        // Behind a trusted proxy: take the right-most XFF hop that is not itself
+        // a trusted proxy (that is the real client as seen by our edge).
         if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            return explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0];
+            $hops = array_filter(array_map('trim', explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])));
+            for ($i = count($hops) - 1; $i >= 0; $i--) {
+                if (filter_var($hops[$i], FILTER_VALIDATE_IP) && !in_array($hops[$i], $trusted, true)) {
+                    return $hops[$i];
+                }
+            }
         }
 
-        return $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        return $remote;
     }
 
     /**

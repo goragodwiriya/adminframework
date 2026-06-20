@@ -343,6 +343,9 @@ button.password-toggle,
   display: flex;
   gap: 10px;
 }
+.form-group.bottom {
+  align-items: flex-end;
+}
 .form-group {
   width: 100%;
 }

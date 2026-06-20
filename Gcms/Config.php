@@ -37,6 +37,19 @@ class Config extends \Kotchasan\Config
         2 => '#0000FF'
     ];
     /**
+     * จำนวนหลักของตัวนับคนเยี่ยมชม
+     *
+     * @var int
+     */
+    public $counter_digit = 4;
+    /**
+     * กำหนดรูปแบบของ URL ที่สร้างจากระบบ
+     * ตามที่กำหนดโดย \Settings->urls
+     *
+     * @var int
+     */
+    public $module_url = 1;
+    /**
      * ถ้ากำหนดเป็น true บัญชี Facebook จะเป็นบัญชีตัวอย่าง
      * ได้รับสถานะแอดมิน (สมาชิกใหม่) แต่อ่านได้อย่างเดียว
      *
@@ -169,6 +182,13 @@ class Config extends \Kotchasan\Config
      */
     public $telegram_bot_token = '';
     /**
+     * Telegram webhook secret token
+     * ใช้ตรวจสอบ header ของ Telegram webhook
+     *
+     * @var string
+     */
+    public $telegram_webhook_secret = '';
+    /**
      * รายการหมวดหมู่ของสมาชิก ที่ต้องระบุ
      *
      * @var array
@@ -198,8 +218,7 @@ class Config extends \Kotchasan\Config
      * @var array
      */
     public $member_images = [
-        'avatar' => '{LNG_Avatar}',
-        'signature' => '{LNG_Signature}'
+        'avatar' => '{LNG_Avatar}'
     ];
     /**
      * ชนิดของไฟล์รูปภาพของสมาชิกที่รองรับ
@@ -262,21 +281,18 @@ class Config extends \Kotchasan\Config
      * @var string
      */
     public $jwt_secret = '';
-
     /**
      * JWT access token lifetime in seconds (default 15 minutes).
      *
      * @var int
      */
     public $jwt_ttl = 900;
-
     /**
      * Whether to set access_token as HttpOnly secure cookie on login (default true).
      *
      * @var bool
      */
     public $jwt_cookie = true;
-
     /**
      * Refresh token lifetime in seconds (used for documentation purposes).
      * Refresh token persistence and rotation handled by user->token field.
@@ -284,54 +300,46 @@ class Config extends \Kotchasan\Config
      * @var int
      */
     public $refresh_ttl = 604800; // 7 days
-
     /**
      * API token for authentication.
      *
      * @var array
      */
     public $api_tokens = [];
-
     /**
      * API secret for signature validation.
      *
      * @var string
      */
     public $api_secret = '';
-
     /**
      * Allowed IP addresses for API access.
      *
      * @var array
      */
     public $api_ips = ['0.0.0.0'];
-
     /**
      * CORS origin setting for API.
      *
      * @var string
      */
     public $api_cors = '';
-
     /**
      * กำหนดค่าคีย์ของ Login session ระบุให้แตกต่างกันในแต่ละแอพพลิเคชั่น หากต้องการให้แยกจากกัน
      * ค่าเริ่มต้นคือ 'login'
      * @var string
      */
     public $session_key = '';
-
     /**
      * หน่วยสกุลเงิน
      *
      * @var string
      */
     public $currency_unit = 'THB';
-
     /**
      * Default max attempts before lockout
      */
     public $max_login_attempts = 5;
-
     /**
      * Default lockout duration in minutes
      */
@@ -350,7 +358,7 @@ class Config extends \Kotchasan\Config
 
     /**
      * AI provider to use by default.
-     * Supported: openai, groq, openrouter, ollama, lmstudio, gemini, claude
+     * Supported: openai, groq, deepseek, openrouter, ollama, lmstudio, gemini, claude
      *
      * @var string
      */
@@ -407,6 +415,7 @@ class Config extends \Kotchasan\Config
         'gemini' => 'gemini-2.0-flash',
         'claude' => 'claude-haiku-3-5',
         'groq' => 'llama-3.3-70b-versatile',
+        'deepseek' => 'deepseek-v4-flash',
         'openrouter' => 'openrouter/auto',
         'ollama' => 'llama3.2',
         'lmstudio' => 'llama3.2'
@@ -423,6 +432,7 @@ class Config extends \Kotchasan\Config
         'gemini' => 'https://generativelanguage.googleapis.com/v1beta/models',
         'claude' => 'https://api.anthropic.com/v1/messages',
         'groq' => 'https://api.groq.com/openai/v1',
+        'deepseek' => 'https://api.deepseek.com/v1',
         'openrouter' => 'https://openrouter.ai/api/v1',
         'ollama' => 'http://localhost:11434/v1',
         'lmstudio' => 'http://localhost:1234/v1'
@@ -441,4 +451,74 @@ class Config extends \Kotchasan\Config
      * @var float
      */
     public $ai_temperature = 0.7;
+
+    // -------------------------------------------------------------------------
+    // AI chat workflow settings
+    // -------------------------------------------------------------------------
+
+    /**
+     * Open handoffs older than this limit (in minutes) are marked as overdue.
+     *
+     * @var int
+     */
+    public $ai_chat_workflow_value = 60;
+
+    // -------------------------------------------------------------------------
+    // AI chat message templates
+    // -------------------------------------------------------------------------
+
+    /**
+     * @var string
+     */
+    public $ai_chat_starter_message = 'พร้อมช่วยค้นหาบทความ ดูรายละเอียดบทความ ตอบคำถามด่วน และส่งต่อเจ้าหน้าที่ ลองพิมพ์คำถามหรือเลือกคำสั่งด้านล่างได้เลย';
+
+    /**
+     * @var string
+     */
+    public $ai_chat_welcome_message = 'สวัสดีครับ ตอนนี้ระบบ AI Chat core ถูกแยกให้รองรับ Web, LINE และ Telegram ได้จากแกนเดียวกัน และสามารถต่อเครื่องมือจากโมดูลอื่นเพิ่มได้ในอนาคต ถ้าต้องการดูความสามารถให้พิมพ์ว่า "ช่วยอะไรได้บ้าง"';
+
+    /**
+     * @var string
+     */
+    public $ai_chat_capability_message = 'ตอนนี้ foundation ของ AI Chat ถูกออกแบบให้ขยายได้โดยแยกเป็น 3 ชั้นหลัก: 1) channel adapter สำหรับ Web, LINE, Telegram 2) chat orchestrator กลาง 3) tool registry สำหรับต่อความสามารถจากโมดูล โดยตอนนี้เริ่มเชื่อม skill จริงแล้วทั้งการค้นหาบทความและการเปิดรายละเอียดบทความจากโมดูลเอกสาร รวมถึงคำตอบด่วนที่ผู้ดูแลกำหนดเองได้';
+
+    /**
+     * @var string
+     */
+    public $ai_chat_escalation_created_message = 'ผมบันทึกคำขอส่งต่อให้เจ้าหน้าที่แล้ว หมายเลขคำขอ #:id เจ้าหน้าที่จะเห็นข้อความล่าสุดและบริบทจากช่องทางนี้ทันที หากต้องการฝากข้อมูลติดต่อเพิ่ม ให้พิมพ์ต่อในแชตนี้ได้เลย';
+
+    /**
+     * @var string
+     */
+    public $ai_chat_ai_disabled_message = 'AI connector is currently disabled.';
+
+    /**
+     * @var string
+     */
+    public $ai_chat_ai_unavailable_message = 'AI chat is temporarily unavailable.';
+
+    /**
+     * @var string
+     */
+    public $ai_chat_ai_empty_response_message = 'AI chat returned an empty response.';
+
+    /**
+     * @var string
+     */
+    public $ai_chat_fallback_help_message = 'Current chat foundation supports a shared core for web, LINE, and Telegram, with future module tools added through the registry instead of hardcoding channel-specific logic.';
+
+    /**
+     * @var string
+     */
+    public $ai_chat_handoff_accepted_message = 'เจ้าหน้าที่รับเรื่องคำขอ #:id แล้ว หากต้องการเพิ่มข้อมูล ให้ตอบกลับในช่องทางนี้ได้เลย';
+
+    /**
+     * @var string
+     */
+    public $ai_chat_handoff_closed_message = 'เจ้าหน้าที่ปิดคำขอ #:id แล้ว ขอบคุณที่ติดต่อเข้ามา หากยังต้องการความช่วยเหลือเพิ่มเติมสามารถส่งข้อความใหม่ได้';
+
+    /**
+     * @var string
+     */
+    public $ai_chat_console_cleared_message = 'Console cleared. Try asking about articles, quick answers, or current chat capabilities.';
 }

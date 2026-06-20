@@ -105,8 +105,8 @@ class Controller extends ApiController
             $color_status = [];
             $status = 0;
             foreach ($topics as $key => $value) {
-                $member_status[$key] = $value === '' && isset($config->member_status[$key]) ? $config->member_status[$key] : $value;
-                $color_status[$key] = empty($colors[$key]) ? '#000000' : $colors[$key];
+                $member_status[$status] = $value === '' && isset($config->member_status[$key]) ? $config->member_status[$key] : $value;
+                $color_status[$status] = empty($colors[$key]) ? '#000000' : $colors[$key];
                 $status++;
             }
 
@@ -129,9 +129,9 @@ class Controller extends ApiController
             return $this->errorResponse('Failed to save settings', 500);
         } catch (\Kotchasan\ApiException $e) {
             // Keep original HTTP code (e.g. 403 CSRF, 405 method)
-            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400);
+            return $this->errorResponse($e->getMessage(), $e->getCode() ?: 400, $e);
         } catch (\Exception $e) {
-            return $this->errorResponse('Failed to save settings: '.$e->getMessage(), 500);
+            return $this->errorResponse('Failed to save settings: '.$e->getMessage(), 500, $e);
         }
     }
 }

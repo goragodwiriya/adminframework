@@ -114,9 +114,6 @@ class Controller extends ApiController
             $password = $request->post('password')->password();
             $clientIp = $request->getClientIp();
 
-            // Get intended URL for redirect after login (use topic() to allow relative paths)
-            $intendedUrl = $request->post('intended_url')->url();
-
             // Validate input payload
             $validation = AuthValidation::validateLogin($username, $password);
             if (!$validation['valid']) {
@@ -140,48 +137,18 @@ class Controller extends ApiController
                 $this->setAuthCookie('refresh_token', $result['refresh_token'], Model::REFRESH_TOKEN_EXPIRY);
             }
 
-            // Determine redirect URL (intended URL or default)
-            $redirectUrl = $this->validateRedirectUrl($intendedUrl) ?: '.';
-
-            // Prepare response (include token for backward compatibility)
+            // The token is delivered only via the httpOnly cookies set above.
+            // RedirectManager remains the single redirect authority on the client.
             $response = [
                 'user' => $result['user'],
-                'token' => $result['token'],
-                'refresh_token' => $result['refresh_token'] ?? null,
                 'expires_in' => $result['expires_in'],
-                'token_type' => $result['token_type'],
-                'actions' => [
-                    ['type' => 'redirect', 'url' => $redirectUrl]
-                ]
+                'token_type' => $result['token_type']
             ];
 
             return $this->successResponse($response, 'Login successful');
         } catch (\Throwable $e) {
             return $this->handleException($e);
         }
-    }
-
-    /**
-     * Validate redirect URL for security (same-origin only).
-     *
-     * @param string|null $url
-     *
-     * @return string|null Validated URL or null if invalid
-     */
-    private function validateRedirectUrl($url)
-    {
-        if (empty($url)) {
-            return null;
-        }
-
-        // Only allow relative URLs starting with /
-        if (strpos($url, '/') === 0 && strpos($url, '//') !== 0) {
-            // Prevent path traversal
-            $url = str_replace(['..', "\0"], '', $url);
-            return $url;
-        }
-
-        return null;
     }
 
     /**
@@ -336,10 +303,8 @@ class Controller extends ApiController
                 $this->setAuthCookie('refresh_token', $result['refresh_token'], Model::REFRESH_TOKEN_EXPIRY);
             }
 
-            // Prepare response
+            // The refreshed access token is delivered only via httpOnly cookies.
             $response = [
-                'token' => $result['token'],
-                'refresh_token' => $result['refresh_token'] ?? null,
                 'expires_in' => $result['expires_in'],
                 'token_type' => $result['token_type'],
                 'user' => $result['user'] ?? null

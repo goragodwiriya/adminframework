@@ -52,7 +52,7 @@ class Controller extends ApiController
             if (!$isSuperAdmin) {
                 $id = $login->id;
             } else {
-                $id = $request->get('id', $login->id)->toInt();
+                $id = $request->get('id')->toInt();
             }
             $user = \Index\Profile\Model::get($id);
             if (!$user) {

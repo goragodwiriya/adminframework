@@ -20,7 +20,7 @@ export const full = {
   ],
   toolbar: [
     ['sourceView', 'fullscreen'],
-    ['aiGenerate', 'aiRewrite', 'aiImage', 'cleanContent'],
+    ['aiGenerate', 'aiRewrite', 'aiImage'],
     ['bold', 'italic', 'underline', 'strikethrough', 'superscript', 'subscript'],
     ['heading'],
     ['bulletList', 'numberedList'],
@@ -32,7 +32,7 @@ export const full = {
     ['emoji', 'specialChars'],
     ['dirLtr', 'dirRtl'],
     ['undo', 'redo'],
-    ['removeFormat', 'pasteCleaner', 'findReplace', 'print']
+    ['removeFormat', 'cleanContent', 'pasteCleaner', 'findReplace', 'print']
   ],
   options: {
     minHeight: 300,
@@ -66,7 +66,7 @@ export const basic = {
   ],
   toolbar: [
     ['sourceView', 'fullscreen'],
-    ['aiGenerate', 'aiRewrite', 'aiImage', 'cleanContent'],
+    ['aiGenerate', 'aiRewrite', 'aiImage'],
     ['bold', 'italic', 'underline'],
     ['heading'],
     ['bulletList', 'numberedList'],
@@ -75,7 +75,7 @@ export const basic = {
     ['blockquote', 'codeBlock', 'horizontalRule'],
     ['textColor', 'backgroundColor'],
     ['undo', 'redo'],
-    ['removeFormat', 'pasteCleaner']
+    ['removeFormat', 'cleanContent', 'pasteCleaner']
   ],
   options: {
     minHeight: 250,
@@ -95,12 +95,12 @@ export const basic = {
  */
 export const minimal = {
   name: 'minimal',
-  plugins: ['wordcount', 'pasteCleaner'],
+  plugins: ['wordcount', 'pasteCleaner', 'contentCleanup'],
   toolbar: [
     ['bold', 'italic', 'underline'],
     ['bulletList', 'numberedList'],
     ['undo', 'redo'],
-    ['removeFormat', 'pasteCleaner']
+    ['removeFormat', 'cleanContent', 'pasteCleaner']
   ],
   options: {
     minHeight: 150,

@@ -598,6 +598,7 @@ const ModalDataBinder = {
 
       // Bind data to modal
       modal.bindData(data);
+      this._processModalDirectives(modal.modal, data);
 
       // Show modal
       modal.show();
@@ -615,6 +616,27 @@ const ModalDataBinder = {
         this._setElementContent(target, value, key);
       });
     }
+
+    this._processModalDirectives(modalElement, data);
+  },
+
+  /**
+   * Evaluate TemplateManager directives (data-if, data-show, data-class, etc.) against bound modal data
+   * @private
+   */
+  _processModalDirectives(modalElement, data) {
+    if (!modalElement || !data || typeof data !== 'object') return;
+
+    const templateManager = window.TemplateManager;
+    if (!templateManager || typeof templateManager.processDataDirectives !== 'function') {
+      return;
+    }
+
+    templateManager.processDataDirectives(modalElement, {
+      state: data,
+      data,
+      computed: {}
+    });
   },
 
   /**
@@ -730,6 +752,9 @@ const ModalDataBinder = {
     } else {
       // Update Modal instance
       modalRef.updateData(data);
+      if (modalRef.modal) {
+        this._processModalDirectives(modalRef.modal, data);
+      }
     }
   },
 

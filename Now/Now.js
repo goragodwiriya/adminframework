@@ -49,6 +49,7 @@ const Now = {
       '/js/StorageManager.js',
       '/js/SyncManager.js',
       '/js/TokenService.js',
+      '/js/RedirectManager.js',
       '/js/AuthManager.js',
       '/js/RouterManager.js',
       '/js/SecurityConfig.js',

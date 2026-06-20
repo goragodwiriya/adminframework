@@ -19,7 +19,10 @@ namespace Gcms;
  * Supported providers:
  *   openai      — OpenAI (https://api.openai.com/v1)
  *   groq        — Groq free tier (https://api.groq.com/openai/v1)
+ *   deepseek    — DeepSeek V4 (https://api.deepseek.com/v1, thinking mode)
  *   openrouter  — OpenRouter with free models (https://openrouter.ai/api/v1)
+ *   vercel      — Vercel AI Gateway (https://ai-gateway.vercel.sh/v1)
+ *   nvidia      — NVIDIA NIM API (https://integrate.api.nvidia.com/v1)
  *   ollama      — Ollama local (http://localhost:11434/v1)
  *   lmstudio    — LM Studio local (http://localhost:1234/v1)
  *   gemini      — Google Gemini native API
@@ -74,11 +77,35 @@ class Ai extends \Kotchasan\KBase
             'models' => ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'],
             'local' => false
         ],
+        'deepseek' => [
+            'text' => 'DeepSeek',
+            'default_model' => 'deepseek-v4-flash',
+            'default_api_url' => 'https://api.deepseek.com/v1',
+            'models' => ['deepseek-v4-flash', 'deepseek-v4-pro'],
+            'thinking_efforts' => ['high', 'max'],
+            'default_thinking_enabled' => 0,
+            'default_reasoning_effort' => 'high',
+            'local' => false
+        ],
         'openrouter' => [
             'text' => 'OpenRouter (free models)',
             'default_model' => 'openrouter/auto',
             'default_api_url' => 'https://openrouter.ai/api/v1',
             'models' => ['openrouter/auto', 'openai/gpt-4o-mini', 'google/gemini-2.0-flash-001', 'anthropic/claude-3.5-haiku'],
+            'local' => false
+        ],
+        'vercel' => [
+            'text' => 'Vercel AI Gateway',
+            'default_model' => 'openai/gpt-4.1-mini',
+            'default_api_url' => 'https://ai-gateway.vercel.sh/v1',
+            'models' => ['openai/gpt-4.1-mini', 'openai/gpt-4o-mini', 'google/gemini-2.0-flash-001', 'anthropic/claude-3.5-haiku'],
+            'local' => false
+        ],
+        'nvidia' => [
+            'text' => 'NVIDIA NIM',
+            'default_model' => 'nvidia/llama-3.1-nemotron-70b-instruct',
+            'default_api_url' => 'https://integrate.api.nvidia.com/v1',
+            'models' => ['nvidia/llama-3.1-nemotron-70b-instruct', 'meta/llama-3.3-70b-instruct', 'meta/llama-3.1-70b-instruct'],
             'local' => false
         ],
         'ollama' => [
@@ -143,7 +170,7 @@ class Ai extends \Kotchasan\KBase
     public static function connectionSettings($provider = null)
     {
         $providers = self::configuredProviders();
-        $stored = (new \Gcms\Chat\SettingsRepository())->connector();
+        $stored = (new \Gcms\Ai\SettingsRepository())->connector();
         $connections = !empty($stored['ai_connections']) && is_array($stored['ai_connections'])
             ? $stored['ai_connections']
             : (!empty(self::$cfg->ai_connections) && is_array(self::$cfg->ai_connections) ? self::$cfg->ai_connections : []);
@@ -213,7 +240,7 @@ class Ai extends \Kotchasan\KBase
      */
     private static function legacyConnection($provider)
     {
-        $stored = (new \Gcms\Chat\SettingsRepository())->connector();
+        $stored = (new \Gcms\Ai\SettingsRepository())->connector();
         $activeProvider = !empty($stored['ai_provider'])
             ? strtolower(trim((string) $stored['ai_provider']))
             : (!empty(self::$cfg->ai_provider) ? strtolower(trim((string) self::$cfg->ai_provider)) : 'openai');
@@ -278,8 +305,25 @@ class Ai extends \Kotchasan\KBase
         $apiUrl = isset($saved['api_url']) && $saved['api_url'] !== ''
             ? trim((string) $saved['api_url'])
             : trim((string) ($legacy['api_url'] ?? ($defaults['default_api_url'] ?? '')));
+        $apiUrl = self::normalizeApiUrl($provider, $apiUrl);
 
-        return [
+        if ($provider === 'deepseek') {
+            $resolved = \Gcms\Ai\Drivers\DeepSeek::resolveModel(
+                $effectiveModel,
+                !empty($saved['thinking_enabled'])
+            );
+            $effectiveModel = $resolved['model'];
+            if (in_array($effectiveModel, $models, true)) {
+                $useCustomModel = false;
+                $storedCustomModel = '';
+                $modelOption = $effectiveModel;
+            }
+            if ($resolved['thinking']) {
+                $saved['thinking_enabled'] = 1;
+            }
+        }
+
+        $connection = [
             'api_key' => isset($saved['api_key']) ? (string) $saved['api_key'] : (string) ($legacy['api_key'] ?? ''),
             'api_url' => $apiUrl,
             'model' => $effectiveModel,
@@ -289,6 +333,19 @@ class Ai extends \Kotchasan\KBase
             'max_tokens' => isset($saved['max_tokens']) && $saved['max_tokens'] !== '' ? (int) $saved['max_tokens'] : (int) ($legacy['max_tokens'] ?? 1024),
             'temperature' => isset($saved['temperature']) && $saved['temperature'] !== '' ? (float) $saved['temperature'] : (float) ($legacy['temperature'] ?? 0.7)
         ];
+
+        if ($provider === 'deepseek') {
+            $thinkingEnabled = !empty($saved['thinking_enabled']);
+            if (!$thinkingEnabled && ($storedCustomModel === 'deepseek-reasoner' || $storedModel === 'deepseek-reasoner')) {
+                $thinkingEnabled = true;
+            }
+            $connection['thinking_enabled'] = $thinkingEnabled ? 1 : 0;
+            $connection['reasoning_effort'] = \Gcms\Ai\Drivers\DeepSeek::normalizeEffort(
+                $saved['reasoning_effort'] ?? ($defaults['default_reasoning_effort'] ?? 'high')
+            );
+        }
+
+        return $connection;
     }
 
     /**
@@ -304,7 +361,7 @@ class Ai extends \Kotchasan\KBase
     public static function driver($provider = null, array $config = [])
     {
         if ($provider === null || $provider === '') {
-            $stored = (new \Gcms\Chat\SettingsRepository())->connector();
+            $stored = (new \Gcms\Ai\SettingsRepository())->connector();
             $provider = !empty($stored['ai_provider']) ? $stored['ai_provider'] : (!empty(self::$cfg->ai_provider) ? self::$cfg->ai_provider : 'openai');
         }
         $provider = strtolower(trim($provider));
@@ -330,8 +387,21 @@ class Ai extends \Kotchasan\KBase
         if (!isset($config['temperature']) && isset($connection['temperature'])) {
             $config['temperature'] = $connection['temperature'];
         }
+        if ($provider === 'deepseek') {
+            if (!isset($config['thinking_enabled']) && isset($connection['thinking_enabled'])) {
+                $config['thinking_enabled'] = !empty($connection['thinking_enabled']);
+            }
+            if (empty($config['reasoning_effort']) && !empty($connection['reasoning_effort'])) {
+                $config['reasoning_effort'] = $connection['reasoning_effort'];
+            }
+        }
         if (empty($config['provider'])) {
             $config['provider'] = $provider;
+        }
+        if (!empty($config['api_url'])) {
+            $config['api_url'] = self::normalizeApiUrl($provider, $config['api_url']);
+        } elseif (!empty($providers[$provider]['default_api_url'])) {
+            $config['api_url'] = self::normalizeApiUrl($provider, $providers[$provider]['default_api_url']);
         }
 
         switch ($provider) {
@@ -341,9 +411,14 @@ class Ai extends \Kotchasan\KBase
         case 'claude':
             return new \Gcms\Ai\Drivers\Claude($config);
 
+        case 'deepseek':
+            return new \Gcms\Ai\Drivers\DeepSeek($config);
+
         case 'openai':
         case 'groq':
         case 'openrouter':
+        case 'vercel':
+        case 'nvidia':
         case 'ollama':
         case 'lmstudio':
             return new \Gcms\Ai\Drivers\OpenAiCompatible($config);
@@ -351,5 +426,33 @@ class Ai extends \Kotchasan\KBase
         default:
             throw new \InvalidArgumentException('Unknown AI provider: '.$provider);
         }
+    }
+
+    /**
+     * Normalize local-provider API URLs.
+     *
+     * Ollama exposes model lists at /api/tags but chat uses the OpenAI-compatible
+     * endpoint at /v1/chat/completions. Users often paste the /api base by mistake.
+     *
+     * @param string $provider
+     * @param string $apiUrl
+     *
+     * @return string
+     */
+    public static function normalizeApiUrl($provider, $apiUrl)
+    {
+        $provider = strtolower(trim((string) $provider));
+        $apiUrl = rtrim(trim((string) $apiUrl), '/');
+        if ($apiUrl === '' || !in_array($provider, ['ollama', 'lmstudio'], true)) {
+            return $apiUrl;
+        }
+        if ($provider === 'ollama' && preg_match('#/api$#i', $apiUrl)) {
+            return preg_replace('#/api$#i', '/v1', $apiUrl);
+        }
+        if (preg_match('#^https?://[^/]+$#i', $apiUrl)) {
+            return $apiUrl.'/v1';
+        }
+
+        return $apiUrl;
     }
 }

@@ -38,8 +38,12 @@ class FileBrowser {
       ...options
     };
 
-    if (!window.translate) {
-      window.translate = (key) => {return key};
+    // Use the same i18n as the rest of the app (admin/designer may load FileBrowser
+    // without ever constructing RichTextEditor — do not leave a no-op stub in place).
+    if (typeof window.Now?.translate === 'function') {
+      window.translate = (key, params) => window.Now.translate(key, params);
+    } else if (!window.translate) {
+      window.translate = (key) => key;
     }
 
     this.currentPath = '/';
@@ -310,7 +314,7 @@ class FileBrowser {
     this.content.className = 'file-browser-content';
 
     this.presetContent = document.createElement('div');
-    this.presetContent.className = 'file-browser-tab-content active';
+    this.presetContent.className = 'file-browser-tab-content active file-browser-preset-readonly';
     this.presetContent.id = 'preset-content';
 
     const categoriesSidebar = document.createElement('div');
@@ -550,6 +554,84 @@ class FileBrowser {
   }
 
   /**
+   * Re-apply UI strings (constructor may have run before Now.translate was ready).
+   */
+  refreshChromeTranslations() {
+    const t = window.translate;
+    if (typeof t !== 'function') {
+      return;
+    }
+
+    const headerTitle = this.modal.querySelector('.file-browser-header h3');
+    if (headerTitle) {
+      headerTitle.textContent = t('Select the file');
+    }
+    const closeBtn = this.modal.querySelector('.file-browser-close');
+    if (closeBtn) {
+      closeBtn.title = t('Close');
+    }
+
+    const presetTab = this.modal.querySelector('.file-browser-tab[data-tab="preset"]');
+    if (presetTab) {
+      presetTab.textContent = t(this.options.presetTabName);
+    }
+    const browserTab = this.modal.querySelector('.file-browser-tab[data-tab="browser"]');
+    if (browserTab) {
+      browserTab.textContent = t(this.options.browserTabName);
+    }
+
+    const presetSearch = this.presetContent?.querySelector('.file-browser-search input[type="text"]');
+    if (presetSearch) {
+      presetSearch.placeholder = t('Search');
+    }
+    const browserSearch = this.browserContent?.querySelector('.file-browser-search input[type="text"]');
+    if (browserSearch) {
+      browserSearch.placeholder = t('Search');
+    }
+
+    const applyViewTitles = (root) => {
+      if (!root) return;
+      const opts = root.querySelectorAll(':scope .file-browser-toolbar .view-options .view-option');
+      if (opts.length >= 1) {
+        opts[0].title = t('Grid view');
+      }
+      if (opts.length >= 2) {
+        opts[1].title = t('List view');
+      }
+    };
+    applyViewTitles(this.presetContent);
+    applyViewTitles(this.browserContent);
+
+    const sidebarTitle = this.browserContent?.querySelector('.sidebar-title');
+    if (sidebarTitle) {
+      sidebarTitle.textContent = t('Folder');
+    }
+
+    const uploadBtn = this.browserContent?.querySelector('.file-browser-actions .icon-upload')?.closest('button');
+    if (uploadBtn) {
+      uploadBtn.innerHTML = `<span class="icon-upload"></span> ${t('Upload')}`;
+    }
+    const newFolderBtn = this.browserContent?.querySelector('.file-browser-actions .icon-create-folder')?.closest('button');
+    if (newFolderBtn) {
+      newFolderBtn.innerHTML = `<span class="icon-create-folder"></span> ${t('Create a folder')}`;
+    }
+
+    const dropMsg = this.browserContent?.querySelector('.file-browser-drop-area .drop-message p');
+    if (dropMsg) {
+      dropMsg.textContent = t('Drag the file here to upload.');
+    }
+
+    const cancelBtn = this.modal.querySelector('.file-browser-footer .icon-reset');
+    if (cancelBtn) {
+      cancelBtn.textContent = t('Cancel');
+    }
+    const selectBtn = this.modal.querySelector('.file-browser-footer .btn.select');
+    if (selectBtn) {
+      selectBtn.textContent = t('Choose');
+    }
+  }
+
+  /**
    * เพิ่ม event listeners
    */
   addEventListeners() {
@@ -577,6 +659,11 @@ class FileBrowser {
    */
   open() {
     try {
+      if (typeof window.Now?.translate === 'function') {
+        window.translate = (key, params) => window.Now.translate(key, params);
+      }
+      this.refreshChromeTranslations();
+
       // Show modal directly (auth is handled by the PHP endpoint)
       document.body.appendChild(this.overlay);
       // Re-append context menu so it sits later in the DOM than the overlay,
@@ -588,8 +675,6 @@ class FileBrowser {
       } else {
         this.switchTab('preset');
       }
-
-      this.loadPresetCategories();
 
       setTimeout(() => {
         this.overlay.classList.add('active');
@@ -645,7 +730,7 @@ class FileBrowser {
 
     if (tabName === 'preset') {
       this.presetContent.classList.add('active');
-      this.loadPresets().catch(err => console.error('Error in loadPresets:', err));
+      this.loadPresetCategories().catch(err => console.error('Error in loadPresetCategories:', err));
     } else {
       this.browserContent.classList.add('active');
       this.loadFiles().catch(err => console.error('Error in loadFiles:', err));
@@ -655,6 +740,7 @@ class FileBrowser {
 
   async loadPresetCategories() {
     try {
+      this.isLoading = true;
       this.updateStatus('Loading');
 
       const endpoint = this.options.apiActions.getPresetCategories || '/file-browser/get_preset_categories';
@@ -664,10 +750,12 @@ class FileBrowser {
       if (result.success && result.data.categories) {
         this.renderPresetCategories(result.data.categories);
       } else {
+        this.isLoading = false;
         this.updateStatus('Unable to load the category');
       }
     } catch (error) {
       console.error('Error loading preset categories:', error);
+      this.isLoading = false;
       this.updateStatus('There is an error in loading categories.');
     }
   }
@@ -680,36 +768,53 @@ class FileBrowser {
     if (!this.presetContent) return;
 
     const categoriesContainer = this.presetContent.querySelector('.file-browser-categories');
-    if (!categoriesContainer) return;
+    const filesContainer = this.presetContent.querySelector('.file-browser-files');
+    if (!categoriesContainer || !filesContainer) return;
 
     categoriesContainer.innerHTML = '';
 
+    if (!categories.length) {
+      this.currentPresetCategory = null;
+      filesContainer.innerHTML = '';
+      const emptyMsg = document.createElement('div');
+      emptyMsg.className = 'empty-message';
+      emptyMsg.textContent = window.translate(
+        'No prepared subfolders yet. Create subfolders under the server prepared directory (e.g. datas/prepared).'
+      );
+      filesContainer.appendChild(emptyMsg);
+      const sideMsg = document.createElement('div');
+      sideMsg.className = 'empty-message';
+      sideMsg.textContent = window.translate('No categories');
+      categoriesContainer.appendChild(sideMsg);
+      if (this.presetContent.classList.contains('active')) {
+        this.isLoading = false;
+        this.updateStatus(window.translate('No prepared categories'));
+      }
+      return;
+    }
+
+    const validIds = new Set(categories.map((c) => c.id));
+    if (!this.currentPresetCategory || !validIds.has(this.currentPresetCategory)) {
+      this.currentPresetCategory = categories[0].id;
+    }
+
     const categoriesList = document.createElement('ul');
 
-    const allItem = document.createElement('li');
-    allItem.className = this.currentPresetCategory === null ? 'active' : '';
-    allItem.innerHTML = `<span class="icon-folder"></span> ${window.translate('all')}`;
-    allItem.addEventListener('click', () => {
-      this.currentPresetCategory = null;
-      this.loadPresets();
-
-      categoriesList.querySelectorAll('li').forEach(item => {
-        item.classList.remove('active');
-      });
-      allItem.classList.add('active');
-    });
-
-    categoriesList.appendChild(allItem);
-
-    categories.forEach(category => {
+    categories.forEach((category) => {
       const item = document.createElement('li');
       item.className = this.currentPresetCategory === category.id ? 'active' : '';
 
-      const iconClass = /^[a-zA-Z0-9_-]+$/.test(category.icon) ? category.icon : 'icon-folder';
+      const rawIcon = category.icon && String(category.icon).trim();
+      const iconClass = rawIcon && /^[\w-]+$/.test(rawIcon) ? rawIcon : 'icon-folder';
       const iconSpan = document.createElement('span');
       iconSpan.className = iconClass;
       item.appendChild(iconSpan);
-      item.appendChild(document.createTextNode(' ' + window.translate(category.name)));
+      const rawName = category.name != null ? String(category.name) : String(category.id || '');
+      const displayName =
+        typeof window.Utils?.string?.humanize === 'function'
+          ? window.Utils.string.humanize(rawName)
+          : rawName;
+      item.appendChild(document.createTextNode(' ' + window.translate(displayName)));
 
       if (category.description) {
         item.title = category.description;
@@ -719,8 +824,8 @@ class FileBrowser {
         this.currentPresetCategory = category.id;
         this.loadPresets();
 
-        categoriesList.querySelectorAll('li').forEach(item => {
-          item.classList.remove('active');
+        categoriesList.querySelectorAll('li').forEach((li) => {
+          li.classList.remove('active');
         });
         item.classList.add('active');
       });
@@ -729,17 +834,33 @@ class FileBrowser {
     });
 
     categoriesContainer.appendChild(categoriesList);
+
+    if (this.presetContent.classList.contains('active')) {
+      this.loadPresets().catch((err) => console.error('Error in loadPresets:', err));
+    }
   }
 
   async loadPresets() {
     const filesContainer = this.presetContent.querySelector('.file-browser-files');
     filesContainer.innerHTML = '';
 
+    if (!this.currentPresetCategory) {
+      const emptyMsg = document.createElement('div');
+      emptyMsg.className = 'empty-message';
+      emptyMsg.textContent = window.translate(
+        'Select a subfolder on the left. Prepared files are only listed inside subfolders.'
+      );
+      filesContainer.appendChild(emptyMsg);
+      this.isLoading = false;
+      this.updateStatus(window.translate('Choose a category'));
+      return;
+    }
+
     this.isLoading = true;
     this.updateStatus('Loading');
 
     const params = new URLSearchParams({
-      category: this.currentPresetCategory || 'all',
+      category: this.currentPresetCategory,
       search: this.searchTerm,
       sort_by: this.sortBy,
       sort_dir: this.sortDir
@@ -754,15 +875,16 @@ class FileBrowser {
 
       if (result.success) {
         this.displayFiles(filesContainer, result.data.files, 'preset');
+        this.isLoading = false;
         this.updateStatus('{items} items.', {items: result.data.files.length});
       } else {
+        this.isLoading = false;
         this.updateStatus('Error: {message}', {message: result.message});
       }
     } catch (error) {
       console.error('Error loading presets:', error);
-      this.updateStatus('Unable to load data');
-    } finally {
       this.isLoading = false;
+      this.updateStatus('Unable to load data');
     }
   }
 
@@ -791,15 +913,16 @@ class FileBrowser {
 
       if (result.success) {
         this.displayFiles(filesContainer, result.data.files, 'browser');
+        this.isLoading = false;
         this.updateStatus('{items} items.', {items: result.data.files.length});
       } else {
+        this.isLoading = false;
         this.updateStatus('Error: {message}', {message: result.message});
       }
     } catch (error) {
       console.error('Error loading files:', error);
-      this.updateStatus('Unable to load data');
-    } finally {
       this.isLoading = false;
+      this.updateStatus('Unable to load data');
     }
   }
 
@@ -1695,6 +1818,26 @@ class FileBrowser {
   }
 
   /**
+   * Replace {name} placeholders (works even when window.translate ignores params).
+   * @param {string} text
+   * @param {Record<string, string|number>|undefined} params
+   * @returns {string}
+   */
+  interpolatePlaceholders(text, params) {
+    if (text == null) return '';
+    let out = String(text);
+    if (!params || typeof params !== 'object') {
+      return out;
+    }
+    return out.replace(/\{(\w+)\}/g, (match, key) => {
+      if (Object.prototype.hasOwnProperty.call(params, key) && params[key] !== undefined && params[key] !== null) {
+        return String(params[key]);
+      }
+      return match;
+    });
+  }
+
+  /**
    * อัปเดทสถานะ
    * @param {string} message - ข้อความสถานะ
    */
@@ -1703,10 +1846,20 @@ class FileBrowser {
     const spinnerHtml = this.isLoading ? '<span class="fb-spinner"></span>' : '';
 
     if (message) {
-      this.status.innerHTML = spinnerHtml + this.escapeHtml(window.translate(message, params));
+      let translated = window.translate(message, params);
+      if (typeof translated !== 'string') {
+        translated = String(message);
+      }
+      const text = this.interpolatePlaceholders(translated, params);
+      this.status.innerHTML = spinnerHtml + this.escapeHtml(text);
     } else {
       if (this.selectedFiles.length > 0) {
-        this.status.innerHTML = spinnerHtml + this.escapeHtml(window.translate('Select {items}', {items: this.selectedFiles.length}));
+        let t = window.translate('Select {items}', {items: this.selectedFiles.length});
+        if (typeof t !== 'string') {
+          t = 'Select {items}';
+        }
+        const text = this.interpolatePlaceholders(t, {items: this.selectedFiles.length});
+        this.status.innerHTML = spinnerHtml + this.escapeHtml(text);
       } else {
         this.status.innerHTML = spinnerHtml + this.escapeHtml(window.translate('Ready to use'));
       }

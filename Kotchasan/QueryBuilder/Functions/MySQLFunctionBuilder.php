@@ -44,6 +44,7 @@ class MySQLFunctionBuilder extends AbstractSQLFunctionBuilder
      */
     public function dateFormat(string $date, string $format): string
     {
+        $format = $this->escapeStringLiteral($format);
         return "DATE_FORMAT({$date}, '{$format}')";
     }
 
