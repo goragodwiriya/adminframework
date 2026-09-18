@@ -1,0 +1,38 @@
+<!-- เทมเพลตของ modal — เป็นชิ้นส่วน HTML ล้วน ๆ ไม่มี sidebar/topbar
+     เปิดโดยคำสั่งจากฝั่งเซิร์ฟเวอร์ (actions: [{type:'modal', template}])
+     ดู modules/demo/controllers/records.php::action() -->
+<article>
+  <table class="table border fullwidth">
+    <tbody>
+      <tr>
+        <th data-i18n>{LNG_Name}</th>
+        <td data-text="name"></td>
+      </tr>
+      <tr>
+        <th data-i18n>{LNG_Email}</th>
+        <td data-text="username"></td>
+      </tr>
+      <tr>
+        <th data-i18n>{LNG_Phone}</th>
+        <td data-text="phone"></td>
+      </tr>
+      <tr>
+        <th data-i18n>{LNG_Status}</th>
+        <td data-text="status_text"></td>
+      </tr>
+      <tr>
+        <th data-i18n>{LNG_Active}</th>
+        <td data-text="active_text"></td>
+      </tr>
+      <tr>
+        <th data-i18n>{LNG_Created}</th>
+        <td data-text="create_date" data-format="datetime"></td>
+      </tr>
+      <tr>
+        <th data-i18n>{LNG_Last Visited}</th>
+        <td data-text="lastvisited" data-format="datetime"></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="comment" data-i18n>{LNG_All numbers on this page are sample data}</p>
+</article>
