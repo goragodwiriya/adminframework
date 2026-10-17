@@ -1,0 +1,48 @@
+<aside data-component="sidebar"></aside>
+<div class="main-content">
+  <div>
+    <header data-component="topbar"></header>
+    <main class="content">
+      <div class="card-groups">
+        <header>
+          <div>
+            <h1 class="icon-table" data-i18n>{LNG_Example} {LNG_Table}</h1>
+            <p data-i18n>{LNG_All numbers on this page are sample data}</p>
+          </div>
+        </header>
+        <section>
+          <div class="tablebody">
+            <table class="table border fullwidth" data-table="demo-records" data-source="api/demo/records" data-default-sort="id asc" data-page-size="10" data-search-columns="name,username,phone" data-show-checkbox="true" data-actions='{"activate":"Activate","inactive":"Inactive","delete":"Delete"}' data-action-url="api/demo/records/action" data-action-button='Process|btn-success' data-row-actions='{
+              "detail": {
+                "element": "button",
+                "className": "btn btn-success icon-search",
+                "title": "Details"
+              }
+            }'>
+              <thead>
+                <!-- class = คลาสของ <th> ส่วน data-cell-class = คลาสของ <td> ในแถว
+                     data-filter="true" สร้าง dropdown กรองให้เอง โดยอ่านตัวเลือกจาก
+                     data-options ที่เขียนไว้ตรงนี้ (ตารางจริงส่งมาใน filters ของ API ได้) -->
+                <tr>
+                  <th data-field="id" data-sort="id" class="center" data-cell-class="center" data-i18n>{LNG_ID}</th>
+                  <th data-field="name" data-sort="name" data-i18n>{LNG_Name}</th>
+                  <th data-field="username" data-i18n>{LNG_Email}</th>
+                  <th data-field="phone" data-i18n>{LNG_Phone}</th>
+                  <th data-field="status" data-sort="status" class="center" data-cell-class="center" data-filter="true" data-type="select" data-format="lookup" data-options='{"0":"User","1":"Admin"}' data-show-all="true" data-all-value="" data-label="Status" data-i18n>{LNG_Status}</th>
+                  <th data-field="active" data-sort="active" class="center" data-cell-class="center" data-filter="true" data-type="select" data-format="lookup" data-options='{"0":"Inactive","1":"Active"}' data-show-all="true" data-all-value="" data-label="Active" data-i18n>{LNG_Active}</th>
+                  <th data-field="create_date" data-sort="create_date" class="center" data-cell-class="center" data-format="date" data-i18n>{LNG_Created}</th>
+                  <th data-field="lastvisited" data-sort="lastvisited" class="center" data-cell-class="center" data-format="datetime" data-i18n>{LNG_Last Visited}</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <footer class="footer">
+    <p class="center">&copy; 2026 Now.js - <a href="https://nowjs.net">nowjs.net</a></p>
+  </footer>
+</div>
