@@ -1,4 +1,5 @@
 import {defineConfig} from 'vite';
+import {existsSync, readFileSync} from 'fs';
 import {dirname, resolve} from 'path';
 import {fileURLToPath} from 'url';
 
@@ -7,6 +8,8 @@ const __dirname = dirname(__filename);
 
 const buildTarget = process.env.BUILD_TARGET || 'core';
 
+// Bundles of Now.js itself, built into Now/dist. This file is the same in every
+// project, so Now/ stays identical everywhere.
 const builds = {
   core: {
     entry: resolve(__dirname, 'Now/core-entry.js'),
@@ -64,6 +67,19 @@ const builds = {
   }
 };
 
+// A bundle that belongs to one project only lives in js/components/<target>/
+// with a build.json ({"entry", "name", "css", "libName"}), and is built into
+// js/dist/ so it never lands in Now/.
+const componentBuild = resolve(__dirname, 'js/components', buildTarget, 'build.json');
+if (!builds[buildTarget] && existsSync(componentBuild)) {
+  const component = JSON.parse(readFileSync(componentBuild, 'utf8'));
+  builds[buildTarget] = {
+    ...component,
+    entry: resolve(dirname(componentBuild), component.entry || 'entry.js'),
+    outDir: 'js/dist'
+  };
+}
+
 const targetConfig = builds[buildTarget];
 
 if (!targetConfig) {
@@ -80,7 +96,7 @@ export default defineConfig({
       cssFileName: targetConfig.css.replace(/\.css$/, ''),
       fileName: () => targetConfig.name
     },
-    outDir: 'Now/dist',
+    outDir: targetConfig.outDir || 'Now/dist',
     sourcemap: true,
     minify: 'terser',
     terserOptions: {

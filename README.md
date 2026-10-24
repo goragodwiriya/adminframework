@@ -120,8 +120,8 @@ rm -rf modules/demo templates/demo # 2. ลบโมดูลตัวอย่�
 ## โครงสร้างโฟลเดอร์
 
 ```
-├── Now/                  เฟรมเวิร์กฝั่งเบราว์เซอร์ (ซอร์สที่ js/ และบันเดิลที่ dist/)
-├── Kotchasan/            เฟรมเวิร์กฝั่ง PHP (router, query builder, HTTP, ภาษา)
+├── Now/                  เฟรมเวิร์กฝั่งเบราว์เซอร์ (ซอร์สที่ js/ และบันเดิลที่ dist/) — เหมือนกันทุกโปรเจ็ค
+├── Kotchasan/            เฟรมเวิร์กฝั่ง PHP (router, query builder, HTTP, ภาษา) — เหมือนกันทุกโปรเจ็ค
 ├── Gcms/                 แกนของแอป: API base, ตาราง, สิทธิ์, อีเมล, LINE, SMS, AI
 ├── modules/              โมดูล — หนึ่งโฟลเดอร์คือหนึ่งความสามารถ
 │   ├── index/            แกนระบบ (สมาชิก สิทธิ์ ตั้งค่า ภาษา) — ห้ามแก้เมื่อทำโปรเจ็คใหม่
@@ -134,7 +134,7 @@ rm -rf modules/demo templates/demo # 2. ลบโมดูลตัวอย่�
 ├── install/              ตัวติดตั้ง ตัวปรับรุ่น และเครื่องมือบรรทัดคำสั่ง
 ├── settings/             ค่ากำหนดที่ตัวติดตั้งเขียนให้ (ต้องเขียนได้)
 ├── datas/                ไฟล์ที่ระบบสร้าง: รูป แคช ล็อก (ต้องเขียนได้)
-├── js/ · css/            สคริปต์และสไตล์ของแอปนี้เอง
+├── js/ · css/            สคริปต์และสไตล์ของแอปนี้เอง (บันเดิลของโปรเจ็ค: js/components/<ชื่อ>/ → js/dist/)
 ├── index.php             หน้าเดียวของ SPA (โหลดบันเดิล + โมดูลอัตโนมัติ)
 └── api.php               ประตูเดียวของ API ทั้งหมด
 ```
@@ -173,11 +173,19 @@ php install/cli-testdb.php
 
 # ชุดทดสอบความปลอดภัยของแกน (รหัสผ่าน bcrypt · session · client IP · บัญชีถูกระงับ · headers)
 php install/cli-testsecurity.php [--url=http://host/path]
+
+# ตรวจว่า Now/ Kotchasan/ vite.config.js ของทุกโปรเจ็คลูกเหมือนที่นี่ 100% / กระจายให้เหมือน
+php install/cli-framework-sync.php [--apply [--force]] [โปรเจ็ค ...]
 ```
 
-**ไม่มีการ sync แกนไปโปรเจ็คลูกแล้ว** (เลิกใช้ 2026-10-09 — เครื่องมือเดิมทับไฟล์ทั้งไฟล์โดยไม่ merge
-จนงานของโปรเจ็คลูกหาย) โปรเจ็คที่สร้างจาก adminframework เป็นเจ้าของสำเนา `Kotchasan/`, `Now/`, `Gcms/`,
-`modules/index` และ `install/` ของตัวเอง การแก้ที่นี่ไม่ไปถึงโปรเจ็คอื่นเอง ถ้าต้องการก็นำไปใส่ทีละโปรเจ็ค
+**`Now/`, `Kotchasan/` และ `vite.config.js` เหมือนกันทุกโปรเจ็ค** (ตั้งแต่ 2026-10-24) แก้ที่นี่ (Now.js แก้ที่ nowjs ก่อน)
+แล้วกระจายด้วย `cli-framework-sync.php --apply` — เครื่องมือเก็บไฟล์ที่ถูกทับ/ลบไว้ที่ `now.js/backup/framework-sync/`
+เสมอ และข้ามโปรเจ็คที่มีไฟล์ของตัวเองปนอยู่หรือมีไฟล์ที่แก้ในโปรเจ็คนั้นแต่ยังไม่ได้นำเข้าที่นี่
+(ใช้ประวัติ git ของ adminframework และ nowjs แยกรุ่นเก่าออกจากงานใหม่) ของที่เป็นของโปรเจ็คเดียวจึงต้องไม่อยู่ในสามที่นี้:
+บันเดิลของโปรเจ็คไปที่ `js/components/<ชื่อ>/` (ดูหัวข้อถัดไป) ชุดทดสอบของ Kotchasan ไปที่ `tests/Kotchasan/`
+
+ส่วนอื่น — `Gcms/`, `modules/index` และ `install/` — ยังไม่ sync อัตโนมัติ (เลิกใช้ 2026-10-09 เพราะเครื่องมือเดิม
+ทับไฟล์ทั้งไฟล์โดยไม่ merge จนงานของโปรเจ็คลูกหาย) โปรเจ็คลูกเป็นเจ้าของสำเนาของตัวเอง ถ้าต้องการก็นำไปใส่ทีละโปรเจ็ค
 ส่วนที่เป็นของโปรเจ็คนั้นจริง ๆ ให้ทำเป็นโมดูล (`modules/<ชื่อ>/admin.js`, `styles.css`, `controllers/init.php`
 ถูกโหลดเอง) แทนการแก้ไฟล์กลางอย่าง `js/main.js` หรือ `menus.php`
 
@@ -201,6 +209,31 @@ npm run dev            # โหมดพัฒนา
 `index.php` โหลด `now.core` `now.table` `now.graph` และ service worker ให้เสมอ
 บันเดิลอื่นเป็นของเสริม — โมดูลที่ต้องใช้ควรโหลดเองจาก `admin.js` ของตัวเอง
 เพื่อไม่ให้โปรเจ็คที่ไม่ได้ใช้ต้องแบกไปด้วย (ดูตัวอย่างที่ `modules/demo/admin.js`)
+
+บันเดิลของ Now.js build ที่ adminframework เท่านั้น แล้วกระจายไปพร้อม `Now/` — `npm run build`
+ในโปรเจ็คลูกจะ build core ทับ `Now/dist/` ด้วย และได้ไฟล์ไม่ตรงกับที่นี่เมื่อรุ่นของ vite/rolldown ใน `node_modules` ต่างกัน
+(`cli-framework-sync.php` รายงานและทับคืนให้) ในโปรเจ็คลูกให้สั่งเฉพาะบันเดิลของตัวเอง เช่น `npm run build:timeline`
+
+### บันเดิลของโปรเจ็ค
+
+โค้ดที่มีแค่โปรเจ็คเดียวใช้และต้อง build เป็นบันเดิลของตัวเอง (designer, timeline ฯลฯ) ห้ามอยู่ใน `Now/`
+ให้วางที่ `js/components/<ชื่อ>/` พร้อม `build.json` — `vite.config.js` (ไฟล์เดียวกันทุกโปรเจ็ค) อ่านเองเมื่อสั่ง
+`BUILD_TARGET=<ชื่อ>` และ build ลง `js/dist/` ซึ่ง build core ไม่ล้าง
+
+```
+js/components/timeline/
+├── build.json   {"entry": "entry.js", "name": "now.timeline.min.js", "css": "now.timeline.min.css", "libName": "NowTimeline"}
+├── entry.js     import ซอร์สและ CSS ของบันเดิล
+└── ...
+```
+
+```bash
+# package.json ของโปรเจ็คนั้น: "build:timeline": "cross-env BUILD_TARGET=timeline vite build"
+npm run build:timeline   # → js/dist/now.timeline.min.js + .css
+```
+
+โมดูลที่ใช้โหลดบันเดิลเองจาก `admin.js` และส่ง `?v=` ของ admin.js ต่อให้ (ตัวอย่าง: `form/modules/docdesigner/admin.js`)
+รายละเอียดอยู่ใน nowjs: `docs/th/guides/architecture/project-bundles.md`
 
 ---
 
