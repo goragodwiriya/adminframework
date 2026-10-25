@@ -32,7 +32,7 @@ Now.getManager('component').define('topbar', {
           </button>
 
           <!-- Theme toggle component (cycles configured themes) -->
-          <button data-component="config" class="nav-link" title="{LNG_Toggle Theme}"></button>
+          <button data-component="config" class="nav-link" title="{LNG_Toggle theme}"></button>
 
           <!-- Menu toggle component (toggles side menu) -->
           <button class="menu-toggle sidemenu-toggle">

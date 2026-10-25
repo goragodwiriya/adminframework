@@ -1720,7 +1720,7 @@ return array(
   'Today Imports' => 'การนำเข้าวันนี้',
   'Today\'s Jobs' => 'งานในวันนี้',
   'Today\'s Revenue' => 'รายได้ในวันนี้',
-  'Toggle Theme' => 'สลับธีม',
+  'Toggle theme' => 'สลับธีม',
   'Too many failed login attempts. Please try again later.' => 'เข้าสู่ระบบผิดพลาดหลายครั้งเกินไป กรุณาลองใหม่ภายหลัง',
   'Too many password reset requests. Please try again later.' => 'ขอตั้งรหัสผ่านใหม่บ่อยเกินไป กรุณาลองใหม่ภายหลัง',
   'Tools' => 'เครื่องมือ',
