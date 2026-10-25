@@ -203,6 +203,7 @@ legend {
 }
 form .submit {
   flex-direction: row;
+  align-items: center;
 }
 form .submit.right {
   justify-content: flex-end;

@@ -364,6 +364,12 @@ const I18nManager = {
   },
 
   /**
+   * Attributes that may carry `{LNG_xxx}` markers. The source text of each is
+   * kept in `data-i18n-<attribute>` so a later locale can translate it again.
+   */
+  translatableAttributes: ['placeholder', 'title', 'alt', 'aria-label', 'aria-placeholder', 'label'],
+
+  /**
    * Translate `{LNG_xxx}` markers in attributes inside one container.
    *
    * Used when new markup is inserted, so only the new subtree is walked instead
@@ -381,36 +387,64 @@ const I18nManager = {
     if (!lngPattern) {
       lngPattern = /\{LNG_[^}]+\}/;
     }
-    const attrs = ['placeholder', 'title', 'alt', 'aria-label', 'aria-placeholder', 'label'];
-    const selector = attrs.map(a => `[${a}]`).join(', ');
+    const selector = this.translatableAttributes.map(a => `[${a}], [data-i18n-${a}]`).join(', ');
 
     container.querySelectorAll(selector).forEach(element => {
-      if (this.isExcluded(element)) return;
-      attrs.forEach(attr => {
-        const value = element.getAttribute(attr);
-        if (value && lngPattern.test(value)) {
-          element.setAttribute(attr, this.interpolate(value, {}, translations));
-        }
-      });
+      this._translateAttributes(element, translations, lngPattern);
     });
+  },
 
-    // Re-translate placeholders that were set dynamically via ElementFactory
-    // (original template stored in data-i18n-placeholder for language-change support)
-    container.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
-      const template = element.getAttribute('data-i18n-placeholder');
-      if (!template) return;
-      const translated = this.interpolate(template, {}, translations);
-      if ('placeholder' in element) {
+  /**
+   * Translate the attributes of one element.
+   *
+   * Replacing a marker with its translation used to lose the marker, so a title
+   * written as `{LNG_Toggle theme}` stayed in the first locale forever. The
+   * source text now goes into `data-i18n-<attribute>` (the same store
+   * ElementFactory uses for placeholders, which may hold a plain key) and every
+   * later pass translates from there. A script that replaces the text this
+   * method wrote owns the attribute from then on and is left alone.
+   *
+   * @param {HTMLElement} element - Element whose attributes to translate.
+   * @param {Object} translations - Map to use.
+   * @param {RegExp} lngPattern - Pattern matching the markers.
+   * @returns {void}
+   */
+  _translateAttributes(element, translations, lngPattern) {
+    if (this.isExcluded(element)) return;
+
+    for (const attr of this.translatableAttributes) {
+      const store = `data-i18n-${attr}`;
+      const value = element.getAttribute(attr);
+      let source = element.getAttribute(store);
+      const written = element._i18nAttributes?.[attr];
+
+      if (value && lngPattern.test(value)) {
+        source = value;
+        element.setAttribute(store, source);
+      } else if (!source) {
+        continue;
+      } else if (written && written.source === source && written.text !== value) {
+        element.removeAttribute(store);
+        delete element._i18nAttributes[attr];
+        continue;
+      }
+
+      const translated = this.getTranslation(source, translations);
+      if (attr === 'placeholder' && 'placeholder' in element) {
         element.placeholder = translated;
       } else {
-        element.setAttribute('placeholder', translated);
+        element.setAttribute(attr, translated);
       }
-      // Also update FileElementFactory's visible UI elements if present
-      const dropMsg = element.parentElement?.querySelector('.file-drop-message');
-      if (dropMsg) dropMsg.textContent = translated;
-      const placeholderEl = element.parentElement?.querySelector('.file-display.placeholder');
-      if (placeholderEl) placeholderEl.textContent = translated;
-    });
+      element._i18nAttributes = {...element._i18nAttributes, [attr]: {source, text: translated}};
+
+      if (attr === 'placeholder') {
+        // Also update FileElementFactory's visible UI elements if present
+        const dropMsg = element.parentElement?.querySelector('.file-drop-message');
+        if (dropMsg) dropMsg.textContent = translated;
+        const placeholderEl = element.parentElement?.querySelector('.file-display.placeholder');
+        if (placeholderEl) placeholderEl.textContent = translated;
+      }
+    }
   },
 
   /**
@@ -541,7 +575,6 @@ const I18nManager = {
 
     const translations = this.state.translations.get(this.state.current) || {};
     const lngPattern = /\{LNG_[^}]+\}/;
-    const i18nAttrs = ['placeholder', 'title', 'alt', 'aria-label', 'aria-placeholder', 'label'];
 
     // 1. Translate the node itself if it has data-i18n
     if (node.hasAttribute?.('data-i18n')) {
@@ -550,12 +583,7 @@ const I18nManager = {
 
     // 2. Translate the node's own attributes containing {LNG_...}
     if (node.attributes) {
-      for (const attr of i18nAttrs) {
-        const value = node.getAttribute?.(attr);
-        if (value && lngPattern.test(value)) {
-          node.setAttribute(attr, this.interpolate(value, {}, translations));
-        }
-      }
+      this._translateAttributes(node, translations, lngPattern);
     }
 
     // 3. Translate descendant [data-i18n] elements

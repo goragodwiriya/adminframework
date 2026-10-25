@@ -4,6 +4,7 @@
  * Features:
  * - Event-driven: listens for 'change' on product search input
  * - Detail API: fetches full product data when selected (supports nested data.data)
+ * - Failed detail/source requests show the API's `message` (NotificationManager)
  * - Flexible API parameters: send multiple parameters (qty, warehouse, batch, etc.)
  * - Flexible columns: defined by <th data-field>
  * - Editable/readonly fields with form submission support
@@ -545,8 +546,9 @@ const LineItemsManager = {
       this._emit(instance, 'sourceLoaded', {source: value, items, count: items.length});
 
     } catch (err) {
-      console.error('[LineItemsManager] Load from source failed:', err);
+      // Existing rows stay — a failed load must not wipe what the user already entered
       this._emit(instance, 'sourceError', {source: value, error: err});
+      this._reportError(err, 'Load from source failed');
     }
   },
 
@@ -667,9 +669,48 @@ const LineItemsManager = {
       const responseData = await this._fetchJson(url, config);
       return responseData?.data || responseData || null;
     } catch (err) {
-      console.error('[LineItemsManager] Failed to fetch product detail:', err);
+      this._emit(instance, 'detailError', {value, error: err});
+      this._reportError(err, 'Failed to fetch product detail');
       return null;
     }
+  },
+
+  /**
+   * Tell the user why a request failed.
+   *
+   * A failure the API answered carries `status` and its own message (e.g. "This
+   * product does not count stock"), so it is shown through NotificationManager —
+   * otherwise the row is simply not added and nothing on screen says why. Anything
+   * else (network, a bug) stays in the console as before.
+   *
+   * @param {Error} error - Error thrown by `_fetchJson` or the caller.
+   * @param {string} label - Console label for failures that are not shown.
+   * @returns {void}
+   */
+  _reportError(error, label) {
+    if (error?.status && window.NotificationManager) {
+      NotificationManager.error(error.message);
+    } else {
+      console.error(`[LineItemsManager] ${label}:`, error);
+    }
+  },
+
+  /**
+   * Build the Error thrown for a response the API marked as failed.
+   *
+   * @param {*} body - Parsed response body.
+   * @param {number} status - HTTP status.
+   * @param {string} statusText - Used when the body has no `message`.
+   * @returns {Error} - Error with `status` and `response` attached.
+   */
+  _requestError(body, status, statusText) {
+    const message = typeof body?.message === 'string' && body.message.trim() !== ''
+      ? body.message
+      : (statusText || 'Request failed');
+    const error = new Error(message);
+    error.status = status || 500;
+    error.response = body;
+    return error;
   },
 
   /**
@@ -732,6 +773,17 @@ const LineItemsManager = {
     });
   },
 
+  /**
+   * GET a JSON endpoint and return its payload (`data.data`, else `data`).
+   *
+   * A response the API marks as failed (non-2xx, or `success: false`) throws an
+   * Error carrying the API's `message` and `status` — see `_requestError`.
+   *
+   * @param {string} url - Request URL.
+   * @param {Object} [config={}] - Instance config (`cache`, `cacheTime`).
+   * @param {Object} [requestOptions={}] - `force: true` skips the cache.
+   * @returns {Promise<*>} - The payload.
+   */
   async _fetchJson(url, config = {}, requestOptions = {}) {
     const useCache = config.cache === true && requestOptions.force !== true;
     const cacheKey = this.createCacheKey(url);
@@ -753,10 +805,10 @@ const LineItemsManager = {
           'Pragma': 'no-cache'
         }
       });
-      responseData = resp?.data?.data || resp?.data;
-      if (resp?.success === false) {
-        return null;
+      if (resp?.success === false || resp?.data?.success === false) {
+        throw this._requestError(resp?.data, resp?.status, resp?.statusText);
       }
+      responseData = resp?.data?.data || resp?.data;
     } else {
       const requestOptions = Now.applyRequestLanguage({
         cache: useCache ? 'default' : 'no-store',
@@ -766,11 +818,17 @@ const LineItemsManager = {
         }
       });
       const resp = await fetch(url, requestOptions);
-      const jsonData = await resp.json();
-      responseData = jsonData?.data?.data || jsonData?.data;
-      if (jsonData?.success === false) {
-        return null;
+      let jsonData = null;
+      try {
+        jsonData = await resp.json();
+      } catch (err) {
+        // A failed response may not be JSON (an HTML error page) — report the status instead
+        if (resp.ok) throw err;
       }
+      if (!resp.ok || jsonData?.success === false) {
+        throw this._requestError(jsonData, resp.status, resp.statusText);
+      }
+      responseData = jsonData?.data?.data || jsonData?.data;
     }
 
     if (useCache && responseData !== null && responseData !== undefined) {
