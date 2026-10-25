@@ -5238,6 +5238,7 @@ const TableManager = {
             locale: '',
             currency: '',
             decimals: '',
+            precision: '',
             placeholder: '',
             options: {},
             optionsKey: '',
@@ -5358,6 +5359,7 @@ const TableManager = {
       if (col.locale !== undefined) th.dataset.locale = col.locale;
       if (col.currency !== undefined) th.dataset.currency = col.currency;
       if (col.decimals !== undefined) th.dataset.decimals = col.decimals;
+      if (col.precision !== undefined) th.dataset.precision = col.precision;
       // Apply class to th only
       if (col.class !== undefined) {
         th.className = col.class;
@@ -6514,10 +6516,12 @@ const TableManager = {
         config.min = attributes.min;
         config.max = attributes.max;
 
-        const precisionValue = attributes.precision ?? attributes.decimals;
+        const isSet = (v) => v !== undefined && v !== null && v !== '';
+        // Both default to '' (extractDataAttributes), so ?? would never reach decimals
+        const precisionValue = isSet(attributes.precision) ? attributes.precision : attributes.decimals;
         let parsedPrecision = null;
 
-        if (precisionValue !== undefined && precisionValue !== null && precisionValue !== '') {
+        if (isSet(precisionValue)) {
           parsedPrecision = parseInt(precisionValue, 10);
           if (!isNaN(parsedPrecision) && parsedPrecision >= 0) {
             config.precision = parsedPrecision;
@@ -6526,8 +6530,16 @@ const TableManager = {
           }
         }
 
-        if (attributes.step !== undefined && attributes.step !== null && attributes.step !== '') {
+        if (isSet(attributes.step)) {
           config.step = attributes.step;
+          // Without a precision, a fractional step allows as many decimals as it
+          // has, as a number field in a form does (step 0.5 → 1 decimal)
+          if (parsedPrecision === null) {
+            const fraction = String(attributes.step).split('.')[1] || '';
+            if (fraction.length > 0) {
+              config.precision = fraction.length;
+            }
+          }
         } else if (parsedPrecision !== null) {
           config.step = parsedPrecision > 0 ? Math.pow(10, -parsedPrecision) : 1;
         } else {

@@ -216,6 +216,14 @@ class NumberElementFactory extends ElementFactory {
   static setupElement(instance) {
     const {element, config} = instance;
 
+    // A negative min means negative values are valid, as it does for a native
+    // number input. Without this, min="-1" still refused "-" while typing and
+    // validation turned a stored -1 into 1.
+    const min = parseFloat(config.min);
+    if (Number.isFinite(min) && min < 0) {
+      config.allowNegative = true;
+    }
+
     // Change type to text to allow formatting (thousand separators, etc.)
     // Browser's native number input doesn't support formatted values
     // Use getAttribute('type') because browser normalizes unknown types to 'text'
