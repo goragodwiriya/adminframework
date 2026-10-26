@@ -976,7 +976,7 @@ const TemplateManager = {
 
             // Prepare a binding for this attribute
             const interpolationBinding = {
-              originalState: this.deepClone(context.state),
+              originalState: this.cloneDirectiveState(context.state),
               originalContext: {...context}
             };
             const attrName = attr.name;
@@ -1438,7 +1438,7 @@ const TemplateManager = {
       if (!el._textBinding) {
         el._textBinding = {
           expression: parsedExpression,
-          originalState: this.deepClone(context.state),
+          originalState: this.cloneDirectiveState(context.state),
           originalContext: {...context},
           formatters: [...parsedFormatters, ...attrFormatters],
           lastValue: null
@@ -1526,7 +1526,7 @@ const TemplateManager = {
       if (!el._htmlBinding) {
         el._htmlBinding = {
           value,
-          originalState: this.deepClone(context.state),
+          originalState: this.cloneDirectiveState(context.state),
           originalContext: {...context},
           lastHtml: null
         };
@@ -1607,7 +1607,7 @@ const TemplateManager = {
       if (!el._ifBinding) {
         el._ifBinding = {
           expression,
-          originalState: this.deepClone(context.state),
+          originalState: this.cloneDirectiveState(context.state),
           originalContext: {...context},
           parent: el.parentNode,
           nextSibling: el.nextSibling,
@@ -1862,7 +1862,7 @@ const TemplateManager = {
       if (!el._classBinding) {
         el._classBinding = {
           value,
-          originalState: this.deepClone(context.state),
+          originalState: this.cloneDirectiveState(context.state),
           originalContext: {...context}
         };
       } else {
@@ -2071,28 +2071,21 @@ const TemplateManager = {
   },
 
   /**
-   * Snapshots the state a directive binding was created with, falling back to a
-   * shallow clone when a deep one fails, such as on a value with cycles the
-   * cloner cannot follow.
+   * Snapshots the top-level keys of the state a directive binding was created
+   * with. Nested values are shared, not copied: the snapshot only supplies keys
+   * the live state no longer has (getDirectiveEvalState() spreads the live state
+   * over it), and a deep copy per binding made a data-for of N rows copy the
+   * whole state, rows included, N × directives times.
    *
    * @param {Object} state - State to snapshot
-   * @param {string} [mode='deep'] - 'deep' or 'shallow'
    * @returns {Object} The snapshot
    */
-  cloneDirectiveState(state, mode = 'deep') {
+  cloneDirectiveState(state) {
     if (!state || typeof state !== 'object') {
       return state;
     }
 
-    if (mode === 'shallow') {
-      return this.cloneState(state);
-    }
-
-    try {
-      return this.deepClone(state);
-    } catch (error) {
-      return this.cloneState(state);
-    }
+    return Array.isArray(state) ? [...state] : {...state};
   },
 
   /**
@@ -2184,7 +2177,6 @@ const TemplateManager = {
    * @param {Object} binding - Binding stored on the element
    * @param {Object} context - Current context
    * @param {Object} [options={}] - Sync options
-   * @param {string} [options.stateMode='deep'] - Clone mode for the state
    * @param {boolean} [options.preserveState=true] - Merge rather than replace the state
    * @param {boolean} [options.preserveContext=true] - Merge rather than replace the context
    * @returns {Object} The binding
@@ -2195,12 +2187,11 @@ const TemplateManager = {
     }
 
     const {
-      stateMode = 'deep',
       preserveState = true,
       preserveContext = true
     } = options;
 
-    const nextState = this.cloneDirectiveState(context.state, stateMode);
+    const nextState = this.cloneDirectiveState(context.state);
     binding.originalState = preserveState
       ? this.mergeDirectiveState(binding.originalState, nextState)
       : nextState;
@@ -2314,7 +2305,7 @@ const TemplateManager = {
       if (!el._attrBinding) {
         el._attrBinding = {
           value,
-          originalState: this.deepClone(context.state),
+          originalState: this.cloneDirectiveState(context.state),
           originalContext: {...context},
           hasLng: value.includes('{LNG_'),
           updates: [],
@@ -2518,13 +2509,13 @@ const TemplateManager = {
       if (!el._styleBinding) {
         el._styleBinding = {
           value,
-          originalState: this.cloneDirectiveState(context.state, 'shallow'),
+          originalState: this.cloneDirectiveState(context.state),
           originalContext: {...context},
           lastStyles: null
         };
       } else {
         el._styleBinding.value = value;
-        this.syncDirectiveBinding(el._styleBinding, context, {stateMode: 'shallow'});
+        this.syncDirectiveBinding(el._styleBinding, context);
       }
 
       const updateStyles = () => {
@@ -2816,7 +2807,7 @@ const TemplateManager = {
           value,
           itemName,
           arrayExpr,
-          originalState: this.deepClone(context.state),
+          originalState: this.cloneDirectiveState(context.state),
           originalContext: {...context},
           lastHash: null
         };
@@ -2975,7 +2966,7 @@ const TemplateManager = {
       if (!el._eventBinding) {
         el._eventBinding = {
           value,
-          originalState: this.deepClone(context.state),
+          originalState: this.cloneDirectiveState(context.state),
           originalContext: {...context},
           handlers: new Map(),
           lastTriggered: {}
@@ -3168,7 +3159,7 @@ const TemplateManager = {
       if (!el._containerBinding) {
         el._containerBinding = {
           value,
-          originalState: this.deepClone(context.state),
+          originalState: this.cloneDirectiveState(context.state),
           originalContext: {...context},
           currentPath: null,
           renderVersion: 0
@@ -3310,7 +3301,7 @@ const TemplateManager = {
       if (!el._modelBinding) {
         el._modelBinding = {
           value,
-          originalState: this.deepClone(context.state),
+          originalState: this.cloneDirectiveState(context.state),
           originalContext: {...context},
           lastValue: null,
           initialValue: null,
@@ -3507,7 +3498,7 @@ const TemplateManager = {
       if (!el._checkedBinding) {
         el._checkedBinding = {
           expression,
-          originalState: this.deepClone(context.state),
+          originalState: this.cloneDirectiveState(context.state),
           originalContext: {...context},
           lastValue: null
         };
@@ -3595,7 +3586,7 @@ const TemplateManager = {
       if (!el._optionsBinding) {
         el._optionsBinding = {
           expression,
-          originalState: this.deepClone(context.state),
+          originalState: this.cloneDirectiveState(context.state),
           originalContext: {...context},
           lastSignature: null
         };
@@ -3700,7 +3691,7 @@ const TemplateManager = {
       if (!el._bindBinding) {
         el._bindBinding = {
           expression,
-          originalState: this.deepClone(context.state),
+          originalState: this.cloneDirectiveState(context.state),
           originalContext: {...context},
           retryTimer: null,
           cleanup() {
@@ -3891,7 +3882,7 @@ const TemplateManager = {
       if (!el._filesBinding) {
         el._filesBinding = {
           expression,
-          originalState: this.deepClone(context.state),
+          originalState: this.cloneDirectiveState(context.state),
           originalContext: {...context},
           lastFilesJson: null
         };
@@ -3975,54 +3966,6 @@ const TemplateManager = {
         data: {el, expression, context}
       });
     }
-  },
-
-  /**
-   * Clones a value deeply, tracking what it has seen so cycles and shared
-   * references survive as the same object in the copy.
-   *
-   * @param {*} obj - Value to clone
-   * @param {WeakMap} [seen=new WeakMap()] - Objects already cloned
-   * @returns {*} The clone
-   */
-  deepClone(obj, seen = new WeakMap()) {
-    if (obj === null || typeof obj !== 'object') {
-      return obj;
-    }
-
-    if (seen.has(obj)) {
-      return seen.get(obj);
-    }
-
-    const clone = Array.isArray(obj) ? [] : {};
-    seen.set(obj, clone);
-
-    Object.entries(obj).forEach(([key, value]) => {
-      clone[key] = this.deepClone(value, seen);
-    });
-
-    return clone;
-  },
-
-  /**
-   * Clones a state object recursively without cycle tracking, used as the
-   * fallback when deepClone() cannot handle a value.
-   *
-   * @param {Object} state - State to clone
-   * @returns {Object} The clone
-   */
-  cloneState(state) {
-    if (!state || typeof state !== 'object') return state;
-    const clone = Array.isArray(state) ? [] : {};
-
-    for (const key in state) {
-      if (Object.prototype.hasOwnProperty.call(state, key)) {
-        const value = state[key];
-        clone[key] = typeof value === 'object' ? this.cloneState(value) : value;
-      }
-    }
-
-    return clone;
   },
 
   /**

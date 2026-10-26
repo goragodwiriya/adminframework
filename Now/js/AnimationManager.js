@@ -1012,7 +1012,7 @@ Object.assign(TemplateManager, {
       element._animBinding = {
         animations: new Map(),
         observers: new Map(),
-        originalState: this.deepClone(context.state),
+        originalState: this.cloneDirectiveState(context.state),
         originalContext: {...context},
         originalDisplay: element.style.display
       };
