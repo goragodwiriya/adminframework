@@ -381,6 +381,7 @@ a:hover {
 /* ========================================
    Charts
    ======================================== */
+.detail-sections,
 .content-body {
   display: flex;
   flex-direction: column;
@@ -882,11 +883,6 @@ form fieldset legend .btn {
   }
 }
 /* Detail Sections - Single Page Layout */
-.detail-sections {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
 .detail-section {
   border-radius: 16px;
   border: 1px solid var(--color-border);
