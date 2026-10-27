@@ -67,7 +67,11 @@ class TableConfiguration
     /**
      * Get the configured table name with prefix applied.
      *
-     * @param string $table The logical table name
+     * The prefix is always added, so pass the logical name only — a name that
+     * already carries the prefix comes back with it twice. A logical name may
+     * itself start with the prefix: on prefix "car", "car_trip" is "car_car_trip".
+     *
+     * @param string $table The logical table name (without prefix)
      * @return string The physical table name with prefix
      */
     public function getTableName(string $table): string
@@ -92,14 +96,7 @@ class TableConfiguration
                 }
             }
 
-            // Apply prefix if configured. Avoid adding prefix twice when
-            // the provided physical table name already includes the prefix.
             if (!empty($this->prefix)) {
-                $prefixWithUnderscore = $this->prefix.'_';
-                // If $tableName already starts with the prefix (idempotent), return as-is
-                if (strpos($tableName, $prefixWithUnderscore) === 0) {
-                    return $tableName;
-                }
                 return $this->prefix.'_'.$tableName;
             }
 

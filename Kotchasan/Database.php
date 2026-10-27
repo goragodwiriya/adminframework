@@ -829,7 +829,7 @@ class Database
     /**
      * Check if a column/field exists in a table.
      *
-     * @param string $table The logical table name or physical table name
+     * @param string $table The logical table name (without prefix)
      * @param string $field The column name to check
      * @return bool True if field exists, false otherwise
      */
@@ -850,7 +850,7 @@ class Database
     /**
      * Quick insert helper: insert associative array into table and return last insert id.
      *
-     * @param string $table Logical or physical table name
+     * @param string $table The logical table name (without prefix)
      * @param array $data  Associative array of column => value
      * @return string Last insert id (string) or empty string on failure
      */
@@ -881,14 +881,14 @@ class Database
     /**
      * Empty (truncate) a table using database-specific optimized method.
      *
-     * @param string $table Logical or physical table name
+     * @param string $table The logical table name (without prefix)
      * @param array $options Driver-specific options
      * @return bool True on success, false on failure
      */
     public function emptyTable(string $table, array $options = []): bool
     {
         try {
-            // Resolve logical table name to physical table name
+            // Resolve the logical table name to the physical one
             $tableName = $this->getTableName($table);
 
             // Delegate to driver for database-specific implementation

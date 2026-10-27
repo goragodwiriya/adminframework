@@ -1278,6 +1278,18 @@ class Model extends \Kotchasan\Model
    <!-- ❌ Bad - JS validation -->
    ```
 
+6. **ไม่ต้องส่งชื่อตารางที่มี prefix เข้า query builder**
+   ```php
+   // ❌ Bad - Kotchasan เติม prefix เสมอ ได้ app_app_orders
+   $db->first($this->getTableName('orders'), ['id', $id]);
+
+   // ✅ Good - from/join/insert/update/delete/first/exists/count รับชื่อที่ไม่มี prefix
+   $db->first('orders', ['id', $id]);
+
+   // ✅ getTableName() ใช้เฉพาะ SQL ดิบ
+   $db->raw('SELECT COUNT(*) AS c FROM `'.$db->getTableName('orders').'`');
+   ```
+
 ---
 
 ## UI Pages และ Common Patterns
