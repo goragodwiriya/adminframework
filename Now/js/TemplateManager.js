@@ -1289,6 +1289,13 @@ const TemplateManager = {
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_ELEMENT, filter, false);
     let el = walker.currentNode;
 
+    // A false data-if leaves only its comment behind, and the walk below cannot
+    // reach the detached element — a later pass with new data (a submit target,
+    // a form loaded again, a reused modal) never put it back, while elements still
+    // shown were re-evaluated and could be removed. Collect the placeholders now
+    // and re-evaluate them once the walk is done
+    const detachedIfs = this.collectDetachedIfs(element, filter);
+
     // Collect data-for elements to process after other directives
     const dataForElements = [];
     // Collect data-attr directives to process AFTER other directives per element
@@ -1396,9 +1403,39 @@ const TemplateManager = {
       this.processDataFor(el, value, context);
     });
 
+    // After data-for: a list that rendered again has dropped its old placeholders,
+    // so only those still in the tree are evaluated
+    detachedIfs.forEach(({comment, el}) => {
+      if (!el.parentNode && el._ifBinding?.comment === comment && element.contains(comment)) {
+        this.processDataIf(el, el._ifBinding.expression, context);
+      }
+    });
+
     if (context.id && element.dataset?.parentContext) {
       element.dataset.parentContext = context.id;
     }
+  },
+
+  /**
+   * Finds the comments that false data-if elements left in place of themselves
+   * under a root, together with the detached element each one stands for.
+   *
+   * @param {HTMLElement} element - Root of the walk
+   * @param {Object|null} filter - The walk's node filter (skips nested components)
+   * @returns {Array<{comment: Comment, el: HTMLElement}>}
+   */
+  collectDetachedIfs(element, filter = null) {
+    const found = [];
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_COMMENT, filter, false);
+    let node = walker.nextNode();
+    while (node) {
+      const el = node._ifElement;
+      if (el && !el.parentNode) {
+        found.push({comment: node, el});
+      }
+      node = walker.nextNode();
+    }
+    return found;
   },
 
   /**
@@ -1626,6 +1663,9 @@ const TemplateManager = {
         if (el.classList.contains('animated')) {
           el._ifBinding.animated = true;
         }
+
+        // Lets a later directive pass find the element while it is detached (collectDetachedIfs)
+        el._ifBinding.comment._ifElement = el;
       } else {
         el._ifBinding.expression = expression;
         this.syncDirectiveBinding(el._ifBinding, context);
@@ -1724,20 +1764,27 @@ const TemplateManager = {
         try {
           if (shouldShow) {
             if (!el.parentNode) {
-              if (!binding.parent) {
-                binding.parent = document.body;
-              }
-
-              if (binding.comment && binding.nextSibling) {
-                binding.parent.insertBefore(binding.comment, binding.nextSibling);
-              } else {
-                binding.parent.appendChild(binding.comment);
-              }
-
-              if (binding.nextSibling) {
+              if (binding.comment?.parentNode) {
+                // The comment holds the element's place — the sibling remembered at
+                // removal may itself have been removed since (a neighbouring data-if)
+                binding.parent = binding.comment.parentNode;
                 binding.parent.insertBefore(el, binding.comment);
               } else {
-                binding.parent.appendChild(el);
+                if (!binding.parent) {
+                  binding.parent = document.body;
+                }
+
+                if (binding.comment && binding.nextSibling) {
+                  binding.parent.insertBefore(binding.comment, binding.nextSibling);
+                } else {
+                  binding.parent.appendChild(binding.comment);
+                }
+
+                if (binding.nextSibling) {
+                  binding.parent.insertBefore(el, binding.comment);
+                } else {
+                  binding.parent.appendChild(el);
+                }
               }
 
               // Only animated elements wait — see the hide branch below
