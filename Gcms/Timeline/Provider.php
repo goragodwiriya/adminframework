@@ -116,7 +116,7 @@ class Provider extends \Kotchasan\KBase
             'protocol' => self::PROTOCOL,
             'source' => [
                 'slug' => (string) (self::$cfg->timeline_slug ?? ''),
-                'name' => (string) (self::$cfg->timeline_name ?? self::$cfg->web_title ?? ''),
+                'name' => (string) (self::$cfg->timeline_name ?? \Kotchasan\Text::plainText(self::$cfg->web_title ?? '')),
                 'url' => rtrim(WEB_URL, '/').'/',
                 'version' => (string) (self::$cfg->version ?? '')
             ],

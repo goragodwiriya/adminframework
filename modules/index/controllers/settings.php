@@ -163,8 +163,9 @@ class Controller extends ApiController
     private function getGeneralData()
     {
         $result = [
-            'web_title' => self::$cfg->web_title,
-            'web_description' => self::$cfg->web_description,
+            // ถอด entity กลับให้ช่องกรอก แท็ก em/b ยังอยู่ — บันทึกซ้ำได้ค่าเดิม ไม่ใช่ &amp;amp;
+            'web_title' => html_entity_decode((string) self::$cfg->web_title, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+            'web_description' => html_entity_decode((string) self::$cfg->web_description, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
             'timezone' => self::$cfg->timezone,
             'default_language' => (string) (self::$cfg->default_language ?? ''),
             'server_time' => date('d/m/Y H:i:s'),
@@ -654,6 +655,8 @@ class Controller extends ApiController
         foreach (['web_title', 'web_description'] as $key) {
             if (isset($body[$key])) {
                 // allow em, b, strong, i tags
+                // เก็บเป็น HTML ที่ฝังลงหน้าได้ทันที ({WEBTITLE} ของ View) จุดที่ต้องการ
+                // ข้อความ (JSON ของ data-text, หัวเรื่องอีเมล, header) ใช้ Text::plainText()
                 $value = Text::htmlText($body[$key]);
                 if ($value === '') {
                     $ret[$key] = 'Please fill in';
@@ -977,7 +980,7 @@ class Controller extends ApiController
             }
 
             // Send test email
-            $subject = self::$cfg->web_title.' - Test Email';
+            $subject = Text::plainText(self::$cfg->web_title).' - Test Email';
             $message = '<h2>Test Email</h2>';
             $message .= '<p>This is a test email from '.self::$cfg->web_title.'.</p>';
             $message .= '<p>If you received this email, your email configuration is working correctly.</p>';
@@ -1025,7 +1028,7 @@ class Controller extends ApiController
             $chat_id = $request->post('chat_id')->topic();
 
             // ทดสอบส่งข้อความ Telegram
-            $error = \Gcms\Telegram::sendTo($chat_id, strip_tags(self::$cfg->web_title), $bot_token);
+            $error = \Gcms\Telegram::sendTo($chat_id, Text::plainText(self::$cfg->web_title), $bot_token);
             if ($error !== '') {
                 return $this->errorResponse($error, 400);
             }

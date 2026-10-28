@@ -361,8 +361,8 @@ class Controller extends ApiController
                     'social' => $login->social,
                     'permission' => $login->permission,
                     'metas' => $login->metas,
-                    'web_title' => strip_tags(self::$cfg->web_title),
-                    'web_description' => self::$cfg->web_description,
+                    'web_title' => \Kotchasan\Text::plainText(self::$cfg->web_title),
+                    'web_description' => \Kotchasan\Text::plainText(self::$cfg->web_description),
                     'web_url' => WEB_URL,
                     'logo' => $logo
                 ]);
@@ -377,8 +377,8 @@ class Controller extends ApiController
                     'social' => [],
                     'permission' => [],
                     'metas' => [],
-                    'web_title' => self::$cfg->web_title,
-                    'web_description' => self::$cfg->web_description,
+                    'web_title' => \Kotchasan\Text::plainText(self::$cfg->web_title),
+                    'web_description' => \Kotchasan\Text::plainText(self::$cfg->web_description),
                     'web_url' => WEB_URL,
                     'logo' => $logo
                 ]);

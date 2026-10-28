@@ -129,8 +129,9 @@ class EmailTemplate extends \Kotchasan\KBase
             return 'Email template not found: '.$code;
         }
 
-        // Add default variables
-        $variables['WEBTITLE'] = $variables['WEBTITLE'] ?? self::$cfg->web_title ?? 'Website';
+        // Add default variables — web_title เก็บเป็น HTML (Text::htmlText) แปลงเป็นข้อความก่อน
+        // หัวเรื่องใช้ตรง ๆ ส่วนเนื้อหา render() escape ให้เอง
+        $variables['WEBTITLE'] = $variables['WEBTITLE'] ?? (\Kotchasan\Text::plainText(self::$cfg->web_title ?? '') ?: 'Website');
         $variables['WEBURL'] = WEB_URL;
         $variables['TIME'] = date('Y-m-d H:i');
         // ลิงก์ของปุ่ม (เช่นลิงก์ยืนยันอีเมลตอนสมัครสมาชิก) ผู้เรียกส่งมาทาง $options

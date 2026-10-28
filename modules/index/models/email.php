@@ -217,7 +217,7 @@ class Model extends \Kotchasan\KBase
 
             // Prepare variables
             $variables = $params['variables'] ?? [];
-            $variables['SITE_NAME'] = self::$cfg->web_title ?? 'Website';
+            $variables['SITE_NAME'] = \Kotchasan\Text::plainText(self::$cfg->web_title ?? '') ?: 'Website';
 
             // Prepare options
             $options = [];
@@ -325,7 +325,7 @@ class Model extends \Kotchasan\KBase
         if (self::hasTemplate($code)) {
             return \Gcms\EmailTemplate::send($code, $to, $variables, $options);
         }
-        $subject = '['.strip_tags(self::$cfg->web_title).'] '.$subject;
+        $subject = '['.\Kotchasan\Text::plainText(self::$cfg->web_title).'] '.$subject;
         $mail = \Kotchasan\Email::send($to, self::$cfg->noreply_email, $subject, $msg);
 
         return $mail->error() ? $mail->getErrorMessage() : true;

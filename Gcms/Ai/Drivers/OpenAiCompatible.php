@@ -157,7 +157,7 @@ class OpenAiCompatible extends \Gcms\Ai\Driver
         // OpenRouter requires these headers for rate-limit accountability
         if (strpos($this->apiUrl, 'openrouter.ai') !== false) {
             $headers['HTTP-Referer'] = isset(self::$cfg->web_url) ? self::$cfg->web_url : '';
-            $headers['X-Title'] = isset(self::$cfg->web_title) ? self::$cfg->web_title : '';
+            $headers['X-Title'] = \Kotchasan\Text::plainText(self::$cfg->web_title ?? '');
         }
 
         return [
@@ -236,7 +236,7 @@ class OpenAiCompatible extends \Gcms\Ai\Driver
         $headers = ['Authorization' => 'Bearer '.$this->apiKey];
         if (strpos($this->apiUrl, 'openrouter.ai') !== false) {
             $headers['HTTP-Referer'] = isset(self::$cfg->web_url) ? self::$cfg->web_url : '';
-            $headers['X-Title'] = isset(self::$cfg->web_title) ? self::$cfg->web_title : '';
+            $headers['X-Title'] = \Kotchasan\Text::plainText(self::$cfg->web_title ?? '');
         }
 
         $content = '';

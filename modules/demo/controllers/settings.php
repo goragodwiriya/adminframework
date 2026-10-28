@@ -52,8 +52,8 @@ class Controller extends ApiController
 
             return $this->successResponse([
                 'data' => (object) [
-                    'site_name' => self::$cfg->web_title,
-                    'site_description' => self::$cfg->web_description,
+                    'site_name' => \Kotchasan\Text::plainText(self::$cfg->web_title),
+                    'site_description' => \Kotchasan\Text::plainText(self::$cfg->web_description),
                     'language' => 'th',
                     'timezone' => self::$cfg->timezone,
                     'date_format' => 'd/m/Y',

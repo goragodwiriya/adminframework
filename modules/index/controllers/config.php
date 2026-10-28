@@ -102,6 +102,12 @@ class Controller extends ApiController
         foreach (self::socialLoginProviders() as $key => $value) {
             $config[$key] = $value;
         }
+        // เก็บเป็น HTML (Text::htmlText) แต่ฝั่ง client แสดงด้วย data-text
+        foreach (['web_title', 'web_description'] as $key) {
+            if (isset($config[$key])) {
+                $config[$key] = \Kotchasan\Text::plainText($config[$key]);
+            }
+        }
         return $config;
     }
 

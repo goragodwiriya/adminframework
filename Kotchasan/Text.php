@@ -698,4 +698,25 @@ class Text
         // Restore the sanitized allowed tags
         return str_replace(array_keys($placeholders), array_values($placeholders), $allowed);
     }
+
+    /**
+     * Convert an HTML fragment (such as a value stored by htmlText()) to
+     * plain text: tags are removed, then entities are decoded.
+     * Use it wherever the value leaves HTML — JSON for a client that sets
+     * textContent, an email subject or sender name, an HTTP header, a
+     * manifest. Escape the result again if it goes back into HTML.
+     *
+     * @param string|null $text The HTML fragment
+     *
+     * @return string
+     */
+    public static function plainText($text): string
+    {
+        if ($text === null || $text === '') {
+            return '';
+        }
+
+        // Tags first: decoding first would turn &lt;b&gt; typed as text into a tag
+        return trim(html_entity_decode(strip_tags((string) $text), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
 }

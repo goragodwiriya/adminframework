@@ -13,6 +13,7 @@ namespace Index\Manifest;
 use Kotchasan\Http\Request;
 use Kotchasan\Http\Response;
 use Kotchasan\Language;
+use Kotchasan\Text;
 
 /**
  * Web App Manifest (manifest.php)
@@ -35,7 +36,7 @@ class Controller extends \Kotchasan\Controller
      */
     public function index(Request $request)
     {
-        $webTitle = self::plainText(self::$cfg->web_title);
+        $webTitle = Text::plainText(self::$cfg->web_title);
         $theme = isset(self::$cfg->theme) && is_array(self::$cfg->theme) ? self::$cfg->theme : [];
 
         // URL ทั้งหมดอ้างจากที่อยู่ของไฟล์นี้ (รากของเว็บ) เหมือน manifest.json เดิม
@@ -43,7 +44,7 @@ class Controller extends \Kotchasan\Controller
         $manifest = [
             'name' => $webTitle,
             'short_name' => $webTitle,
-            'description' => self::plainText(self::$cfg->web_description),
+            'description' => Text::plainText(self::$cfg->web_description),
             'start_url' => './',
             'scope' => './',
             'display' => 'standalone',
@@ -81,18 +82,5 @@ class Controller extends \Kotchasan\Controller
         return $response->withHeader('Content-Type', 'application/manifest+json; charset=utf-8')
             ->withHeader('Cache-Control', 'no-cache')
             ->withContent(json_encode($manifest, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-    }
-
-    /**
-     * ข้อความล้วนสำหรับ manifest
-     * web_title และ web_description บันทึกผ่าน Text::htmlText จึงอาจมีแท็ก em/b และ entity
-     *
-     * @param string $text
-     *
-     * @return string
-     */
-    private static function plainText($text)
-    {
-        return trim(html_entity_decode(strip_tags((string) $text), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
     }
 }

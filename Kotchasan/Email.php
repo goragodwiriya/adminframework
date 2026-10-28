@@ -56,7 +56,7 @@ class Email extends \Kotchasan\KBase
         $charset = empty(self::$cfg->email_charset) ? 'utf-8' : strtolower(self::$cfg->email_charset);
 
         if (empty($replyto)) {
-            $replyto = [strip_tags(self::$cfg->web_title), self::$cfg->noreply_email];
+            $replyto = [Text::plainText(self::$cfg->web_title), self::$cfg->noreply_email];
         } elseif (preg_match('/^(.*)<(.*?)>$/', $replyto, $match)) {
             $replyto = [strip_tags($match[1]), (empty($match[2]) ? $match[1] : $match[2])];
         } else {
@@ -83,7 +83,7 @@ class Email extends \Kotchasan\KBase
             $mail->AddReplyTo($replyto[1], $replyto[0]);
 
             if ($mail->ValidateAddress(self::$cfg->noreply_email)) {
-                $mail->SetFrom(self::$cfg->noreply_email, strip_tags(self::$cfg->web_title));
+                $mail->SetFrom(self::$cfg->noreply_email, Text::plainText(self::$cfg->web_title));
             }
 
             $mail->Subject = $subject;
@@ -251,7 +251,7 @@ class Email extends \Kotchasan\KBase
         $params = '';
         $noreply = (string) self::$cfg->noreply_email;
         if (filter_var($noreply, FILTER_VALIDATE_EMAIL)) {
-            $name = strip_tags((string) self::$cfg->web_title);
+            $name = Text::plainText(self::$cfg->web_title);
             if ($charset != 'utf-8') {
                 $name = iconv('utf-8', $charset, $name);
             }

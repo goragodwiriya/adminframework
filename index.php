@@ -23,8 +23,11 @@
 
     // ค่าเหล่านี้มาจาก config ของ tenant ที่ init() merge ให้แล้ว (ไม่ใช่ค่ากลาง)
     $reversion = rawurlencode((string) $cfg['reversion'] ?? '');
-    $webTitle = (string) ($cfg['web_title'] ?? 'Admin System');
-    $webDescription = (string) ($cfg['web_description'] ?? 'Admin panel to manage site contents and settings.');
+    // เก็บเป็น HTML (Text::htmlText) — ทำเป็นข้อความล้วนแบบ Text::plainText() ก่อน escape ด้านล่าง
+    // ไม่อย่างนั้น "A &amp; B" จะถูก escape ซ้ำเป็น &amp;amp;
+    $plain = fn($html) => trim(html_entity_decode(strip_tags((string) $html), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    $webTitle = $plain($cfg['web_title'] ?? 'Admin System');
+    $webDescription = $plain($cfg['web_description'] ?? 'Admin panel to manage site contents and settings.');
     $themeColor = (string) ($cfg['theme']['--color-primary'] ?? '') ?: '#4f46e5';
 
     /*
