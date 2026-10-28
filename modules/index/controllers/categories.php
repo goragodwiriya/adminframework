@@ -43,6 +43,14 @@ class Controller extends ApiController
     protected $multiLanguage = false;
 
     /**
+     * สิทธิ์ที่เปิดและบันทึกหมวดหมู่ชุดนี้ได้ — คลาสลูกตั้งให้ตรงกับสิทธิ์ที่เห็นเมนูของหน้านั้น
+     * (เดิมตายตัวเป็น can_config ผู้ดูแลโมดูลเห็นเมนูแต่เปิดแล้วได้ 403)
+     *
+     * @var array
+     */
+    protected $permission = ['can_config'];
+
+    /**
      * คืนค่าหมวดหมู่ทั้งหมด
      *
      * @return array
@@ -73,7 +81,7 @@ class Controller extends ApiController
             }
 
             // Authorization check
-            if (!ApiController::hasPermission($login, ['can_config'])) {
+            if (!ApiController::hasPermission($login, $this->permission)) {
                 return $this->errorResponse('Forbidden', 403);
             }
 
@@ -127,7 +135,7 @@ class Controller extends ApiController
             }
 
             // Authorization for saving
-            if (!ApiController::canModify($login)) {
+            if (!ApiController::canModify($login, $this->permission)) {
                 return $this->errorResponse('Permission required', 403);
             }
 

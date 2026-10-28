@@ -408,7 +408,7 @@ tr.carry span {
 }
 .sign-line {
   margin: 0 var(--sp-4) 1mm;
-  border-top: 1px dotted var(--muted);
+  border-bottom: 1px dotted var(--muted);
 }
 .sign-name {
   font-weight: bold;
