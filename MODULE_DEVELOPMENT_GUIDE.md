@@ -227,6 +227,12 @@ class Controller extends \Gcms\Controller
 }
 ```
 
+> ⚠️ กลุ่ม `settings` มีให้**ทุกคนที่เข้าระบบ** ไม่ใช่เฉพาะ `can_config` — `Index\Menus\Controller::getMenus()`
+> สร้างกลุ่มว่างไว้ก่อนเรียก `initMenus` แล้วตัดทิ้งท้ายสุดถ้าไม่มีโมดูลไหนเติม
+> ผู้จัดการโมดูลที่ไม่มี `can_config` (เช่น `can_manage_booking`) จึงเห็นเมนูตั้งค่าของโมดูลตัวเองได้
+> **ต้องตรวจสิทธิ์ของหน้าที่จะเติมเองก่อน `insertMenuChildren(..., 'settings')` เสมอ** ห้ามถือว่า "มีกลุ่ม settings = เป็นผู้ตั้งค่าระบบ"
+> (เดิมกลุ่มนี้มีเฉพาะ `can_config` แล้ว `insertMenuChildren` คืนเมนูเดิมเงียบ ๆ เมื่อไม่มีกลุ่ม — เมนูของผู้จัดการโมดูลหายทั้งที่เปิดหน้าได้)
+
 **ตัวช่วยจัดเมนูใน `\Gcms\Controller`** (มีจริงทั้งหมด)
 `insertMenuAfter`, `insertMenuBefore`, `insertMenuChildren`, `ensureMenuStructure`,
 `insertMenuByKey`, `findMenuPosition`, `hasMenu`

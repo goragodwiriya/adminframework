@@ -144,12 +144,27 @@ class Controller extends \Gcms\Controller
             ];
         }
 
+        // กลุ่มตั้งค่ามีให้ทุกคนที่เข้าระบบ โมดูลฝากเมนูจัดการของตัวเองไว้ตามสิทธิ์ของโมดูล
+        // (ผู้จัดการห้องที่มีแค่ can_manage_booking ต้องเห็นเมนูห้อง — เดิม insertMenuChildren ทิ้งเงียบ ๆ)
+        // โมดูลจึงต้องตรวจสิทธิ์เองก่อนเติม · ไม่มีใครเติมเลย = ตัดกลุ่มทิ้งก่อนส่งกลับ
+        if (!isset($menus['settings'])) {
+            $menus['settings'] = [
+                'title' => 'Settings',
+                'icon' => 'icon-settings',
+                'children' => []
+            ];
+        }
+
         // Load module menus
         $menus = self::initModule($menus, 'initMenus', $login);
 
         // Let a module arrange the complete menu: initMenus runs in directory order,
         // so no module sees what the others add
         $menus = self::initModule($menus, 'arrangeMenus', $login);
+
+        if (empty($menus['settings']['children'])) {
+            unset($menus['settings']);
+        }
 
         // return menus
         return array_values($menus);
