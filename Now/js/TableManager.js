@@ -8,6 +8,9 @@ const TableManager = {
     showFooter: false,
     footerAggregates: {}, // e.g. {price: 'sum', quantity: 'sum', rating: 'avg'}
     searchColumns: [],
+    // Placeholder of the built-in search box (data-search-placeholder), a
+    // translation key. Empty = "Search in: " and the searched columns.
+    searchPlaceholder: '',
     persistColumnWidths: true,
     // Bring the table back as the user left it (page size, sort, filters; page
     // for the rest of the tab session) when the address carries no table
@@ -734,6 +737,10 @@ const TableManager = {
           const [startKey, endKey] = filterElement.rangeKeys;
           filterElement.setRange(table.config.params[startKey] ?? '', table.config.params[endKey] ?? '');
         }
+        return;
+      }
+      if (filterElement?.tabs) {
+        filterElement.select(value);
         return;
       }
       if (filterElement && filterElement.element && value !== undefined && value !== null) {
@@ -2134,6 +2141,22 @@ const TableManager = {
 
         table.filterWrapper.addEventListener('change', fwChange);
         table.eventHandlers.filterWrapperChange = fwChange;
+
+        // A filter bar inside a form (a table of inputs that the form around it
+        // saves): Enter in a filter box would submit that form. It commits the
+        // box instead, as Enter does outside a form (blurring fires the change
+        // the box filters by, and only once), so Enter never saves the page.
+        if (!table.externalFilterForm && table.filterWrapper.closest('form')) {
+          const fwKeydown = (e) => {
+            if (e.key === 'Enter' && e.target?.tagName === 'INPUT') {
+              e.preventDefault();
+              e.target.blur();
+              e.target.focus();
+            }
+          };
+          table.filterWrapper.addEventListener('keydown', fwKeydown);
+          table.eventHandlers.filterWrapperKeydown = fwKeydown;
+        }
       }
     } catch (err) {
       console.warn('Delegation setup failed', err);
@@ -2458,6 +2481,13 @@ const TableManager = {
         config.params[field] = attributes.value;
       }
 
+      if (attributes.type === 'tabs') {
+        if (!isExternalFilter) {
+          this.setupTabsFilter(table, tableId, field, attributes);
+        }
+        return;
+      }
+
       // Persist options for later use (e.g., formatting/lookup)
       if (attributes.options) {
         if (!table.filterOptions) table.filterOptions = new Map();
@@ -2516,6 +2546,15 @@ const TableManager = {
         }
       };
 
+      // The limits a number or date filter accepts, from data-min, data-max,
+      // data-step and data-precision of the column (as an editable cell reads them)
+      if (attributes.type === 'number' || attributes.type === 'currency') {
+        this.applyNumberLimits(elementConfig, attributes, attributes.type === 'currency' ? 0.01 : 1);
+      } else if (this.isDateFilterType(attributes.type)) {
+        elementConfig.min = attributes.min;
+        elementConfig.max = attributes.max;
+      }
+
       const elementObj = elementManager.create(attributes.type, elementConfig);
 
       if (elementObj?.element) {
@@ -2540,7 +2579,7 @@ const TableManager = {
         wrapper: 'div',
         wrapperClass: 'search',
         value: config.params.search || '',
-        placeholder: `${Now.translate('Search in')}: ${config.searchColumns.join(', ')}`,
+        placeholder: this.getSearchPlaceholder(config),
         minLength: 2,
         onChange: (element, value) => {
           debouncedFilterChange(table, tableId, 'search', value, element);
@@ -2631,6 +2670,110 @@ const TableManager = {
       table.filterElements.set(key, elementObj);
       table.filterData.set(key, elementObj);
     });
+  },
+
+  /**
+   * Placeholder of the built-in search box: data-search-placeholder when the
+   * table has one, otherwise "Search in: " and the searched columns.
+   *
+   * @param {Object} config - Table configuration
+   * @returns {string}
+   */
+  getSearchPlaceholder(config) {
+    if (config.searchPlaceholder) {
+      return Now.translate(config.searchPlaceholder);
+    }
+    return `${Now.translate('Search in')}: ${config.searchColumns.join(', ')}`;
+  },
+
+  /**
+   * Builds the filter of a data-type="tabs" column: a row of tab buttons, one
+   * per option, in place of a dropdown. A click filters at once. The options
+   * come from data-options or from filters in the response, where an option
+   * may carry a count ({value, text, count}) that its tab shows beside the text.
+   *
+   * @param {Object} table - Table instance
+   * @param {string} tableId - Table id
+   * @param {string} field - Column field
+   * @param {Object} attributes - Column definition
+   * @returns {void}
+   */
+  setupTabsFilter(table, tableId, field, attributes) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'tab-buttons table-filter-tabs';
+    wrapper.setAttribute('role', 'tablist');
+    wrapper.setAttribute('aria-label', Now.translate(attributes.label || field));
+    wrapper.dataset.filterManaged = '1';
+
+    const filterObj = {
+      element: wrapper,
+      wrapper,
+      tabs: true,
+      options: [],
+      // Draws the tabs; the one of the current value is active
+      setOptions: (options) => {
+        filterObj.options = options;
+        const current = String(table.config.params[field] ?? '');
+        wrapper.replaceChildren(...options.map(option => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'tab-button';
+          button.setAttribute('role', 'tab');
+          button.dataset.value = String(option.value);
+          button.textContent = Now.translate(String(option.text));
+          const count = parseInt(option.count, 10);
+          if (count > 0) {
+            const badge = document.createElement('span');
+            badge.className = 'badge-danger';
+            badge.textContent = String(count);
+            button.append(' ', badge);
+          }
+          return button;
+        }));
+        filterObj.select(current);
+      },
+      select: (value) => {
+        let active = Array.from(wrapper.children).find(button => button.dataset.value === String(value ?? ''));
+        // A value with no tab of its own shows the first tab, as a select shows its first option
+        active = active || wrapper.firstElementChild;
+        Array.from(wrapper.children).forEach(button => {
+          const isActive = button === active;
+          button.classList.toggle('active', isActive);
+          button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+      }
+    };
+
+    wrapper.addEventListener('click', (event) => {
+      const button = event.target.closest('.tab-button');
+      if (!button || !wrapper.contains(button) || button.classList.contains('active')) return;
+      filterObj.select(button.dataset.value);
+      this.handleFilterChange(table, tableId, field, button.dataset.value, button);
+    });
+
+    const provided = attributes.options || {};
+    const options = Array.isArray(provided)
+      ? provided.map(item => (item && typeof item === 'object') ? item : {value: item, text: String(item)})
+      : Object.keys(provided).map(key => ({value: key, text: provided[key]}));
+    if (attributes.showAll !== false && !options.some(option => String(option.value) === String(attributes.allValue))) {
+      options.unshift({value: attributes.allValue, text: attributes.allLabel || 'All items'});
+    }
+    filterObj.setOptions(options);
+
+    table.filterWrapper.appendChild(wrapper);
+    table.filterElements.set(field, filterObj);
+    table.filterData.set(field, filterObj);
+  },
+
+  /**
+   * Whether a filter type offers a list of options, which filters in the
+   * response (or the values found in the data) fill.
+   *
+   * @param {string} type - Column data-type
+   * @returns {boolean}
+   */
+  isOptionFilterType(type) {
+    return type === 'select' || type === 'multiselect' || type === 'tabs';
   },
 
   /**
@@ -4486,8 +4629,9 @@ const TableManager = {
       Object.entries(filters).forEach(([key, values]) => {
         const filterElement = table.filterData.get(key);
         const attributes = table.columns.get(key);
-        // Date filters have no options to offer
+        // Date filters have no options to offer, and neither has a box that is typed into
         if (filterElement?.rangeKeys || this.isDateFilterType(attributes?.type)) return;
+        if (!table.externalFilterForm && attributes?.filter && !this.isOptionFilterType(attributes.type)) return;
         if (filterElement && filterElement.element) {
           // Build ordered array of options: [{value, text}, ...]
           // Normalize values (can be Map, Array, or plain object)
@@ -4505,7 +4649,8 @@ const TableManager = {
               if (item && typeof item === 'object') {
                 const val = item.value !== undefined ? item.value : (item.key !== undefined ? item.key : item);
                 const txt = item.text || item.label || String(item);
-                optionsArray.push({value: val, text: txt});
+                // A tab shows the count beside its text
+                optionsArray.push(item.count !== undefined ? {value: val, text: txt, count: item.count} : {value: val, text: txt});
                 existingKeys.add(String(val));
               } else {
                 optionsArray.push({value: item, text: String(item)});
@@ -4533,6 +4678,11 @@ const TableManager = {
             if (!existingKeys.has(allValStr)) {
               optionsArray.unshift({value: allVal, text: (attributes.allLabel || 'All')});
             }
+          }
+
+          if (filterElement.tabs) {
+            filterElement.setOptions(optionsArray);
+            return;
           }
 
           // Prefer element-based lookup to avoid stale id-only instances
@@ -4651,7 +4801,7 @@ const TableManager = {
     const result = {};
     // Only derive for columns configured as filterable and of select type
     table.columns.forEach((attributes, field) => {
-      if (!attributes.filter || this.isDateFilterType(attributes.type)) return;
+      if (!attributes.filter || !this.isOptionFilterType(attributes.type)) return;
       // If options already provided via attributes or filterOptions, skip deriving
       if ((attributes.options && Object.keys(attributes.options).length) || this.getFilterOptions(table, field)) return;
 
@@ -5413,6 +5563,9 @@ const TableManager = {
       if (col.showAll !== undefined) th.dataset.showAll = col.showAll;
       if (col.allLabel !== undefined) th.dataset.allLabel = col.allLabel;
       if (col.allValue !== undefined) th.dataset.allValue = col.allValue;
+      if (col.rangeNames !== undefined) th.dataset.rangeNames = col.rangeNames;
+      if (col.rangePresets !== undefined) th.dataset.rangePresets = col.rangePresets;
+      if (col.rangeMaxDays !== undefined) th.dataset.rangeMaxDays = col.rangeMaxDays;
 
       // Autocomplete
       if (col.autocomplete !== undefined) th.dataset.autocomplete = col.autocomplete;
@@ -6340,7 +6493,7 @@ const TableManager = {
       // Search placeholder
       const searchObj = table.filterElements.get('search');
       if (searchObj?.element && Array.isArray(config.searchColumns) && config.searchColumns.length) {
-        searchObj.element.placeholder = `${Now.translate('Search in')}: ${config.searchColumns.join(', ')}`;
+        searchObj.element.placeholder = this.getSearchPlaceholder(config);
       }
     }
   },
@@ -6416,6 +6569,50 @@ const TableManager = {
     } catch (error) {
       console.error('Failed to create element in cell:', error);
       cell.textContent = value;
+    }
+  },
+
+  /**
+   * Sets min, max, step and precision of a number control from the column's
+   * data-min, data-max, data-step and data-precision (or data-decimals).
+   *
+   * @param {Object} config - Element configuration to fill
+   * @param {Object} attributes - Column definition
+   * @param {number} defaultStep - Step when the column sets neither step nor precision
+   * @returns {void}
+   */
+  applyNumberLimits(config, attributes, defaultStep) {
+    config.min = attributes.min;
+    config.max = attributes.max;
+
+    const isSet = (v) => v !== undefined && v !== null && v !== '';
+    // Both default to '' (extractDataAttributes), so ?? would never reach decimals
+    const precisionValue = isSet(attributes.precision) ? attributes.precision : attributes.decimals;
+    let parsedPrecision = null;
+
+    if (isSet(precisionValue)) {
+      parsedPrecision = parseInt(precisionValue, 10);
+      if (!isNaN(parsedPrecision) && parsedPrecision >= 0) {
+        config.precision = parsedPrecision;
+      } else {
+        parsedPrecision = null;
+      }
+    }
+
+    if (isSet(attributes.step)) {
+      config.step = attributes.step;
+      // Without a precision, a fractional step allows as many decimals as it
+      // has, as a number field in a form does (step 0.5 → 1 decimal)
+      if (parsedPrecision === null) {
+        const fraction = String(attributes.step).split('.')[1] || '';
+        if (fraction.length > 0) {
+          config.precision = fraction.length;
+        }
+      }
+    } else if (parsedPrecision !== null) {
+      config.step = parsedPrecision > 0 ? Math.pow(10, -parsedPrecision) : 1;
+    } else {
+      config.step = defaultStep;
     }
   },
 
@@ -6511,42 +6708,9 @@ const TableManager = {
         break;
 
       case 'number':
-      case 'currency': {
-        // Numeric inputs used in editable cells.
-        config.min = attributes.min;
-        config.max = attributes.max;
-
-        const isSet = (v) => v !== undefined && v !== null && v !== '';
-        // Both default to '' (extractDataAttributes), so ?? would never reach decimals
-        const precisionValue = isSet(attributes.precision) ? attributes.precision : attributes.decimals;
-        let parsedPrecision = null;
-
-        if (isSet(precisionValue)) {
-          parsedPrecision = parseInt(precisionValue, 10);
-          if (!isNaN(parsedPrecision) && parsedPrecision >= 0) {
-            config.precision = parsedPrecision;
-          } else {
-            parsedPrecision = null;
-          }
-        }
-
-        if (isSet(attributes.step)) {
-          config.step = attributes.step;
-          // Without a precision, a fractional step allows as many decimals as it
-          // has, as a number field in a form does (step 0.5 → 1 decimal)
-          if (parsedPrecision === null) {
-            const fraction = String(attributes.step).split('.')[1] || '';
-            if (fraction.length > 0) {
-              config.precision = fraction.length;
-            }
-          }
-        } else if (parsedPrecision !== null) {
-          config.step = parsedPrecision > 0 ? Math.pow(10, -parsedPrecision) : 1;
-        } else {
-          config.step = attributes.cellElement === 'currency' ? 0.01 : 1;
-        }
+      case 'currency':
+        this.applyNumberLimits(config, attributes, attributes.cellElement === 'currency' ? 0.01 : 1);
         break;
-      }
 
       case 'textarea':
         // Textarea
@@ -6695,6 +6859,9 @@ const TableManager = {
 
         if (table.eventHandlers.filterWrapperChange && table.filterWrapper) {
           table.filterWrapper.removeEventListener('change', table.eventHandlers.filterWrapperChange);
+        }
+        if (table.eventHandlers.filterWrapperKeydown && table.filterWrapper) {
+          table.filterWrapper.removeEventListener('keydown', table.eventHandlers.filterWrapperKeydown);
         }
 
         this.cleanupActionBindings(table);

@@ -484,6 +484,17 @@ td.checkbox .form-control {
 .table_nav label {
   margin-right: 0.25rem;
 }
+/* data-type="tabs" filter: a row of its own above the other filters */
+.table_nav > .table-filter-tabs {
+  flex-basis: 100%;
+  order: -1;
+  border-radius: var(--border-radius);
+}
+.table-filter-tabs .tab-button.active {
+  background-color: var(--tabs-button-bg-active);
+  color: var(--tabs-button-text-active);
+  border-bottom-color: var(--tabs-border-active);
+}
 .splitpage {
   display: flex;
   justify-content: center;

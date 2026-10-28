@@ -297,6 +297,16 @@ class NumberElementFactory extends ElementFactory {
 
       change: () => {
         this.applyFormatting(instance);
+        // onChange from the definition with the number ('' when empty), as a
+        // select calls it — a TableManager filter applies its value through it
+        if (typeof config.onChange === 'function') {
+          const number = instance.parseNumber(element.value);
+          try {
+            config.onChange(element, isNaN(number) ? '' : number);
+          } catch (err) {
+            console.warn('NumberElementFactory onChange handler error', err);
+          }
+        }
       },
 
       blur: () => {
