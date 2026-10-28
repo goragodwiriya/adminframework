@@ -576,44 +576,42 @@ function initProfile() {
 
 ---
 
-### Pattern 5: Table with Filters (ตารางที่มี External Filter Form)
+### Pattern 5: Table with Filters (ตัวกรองบนหัวคอลัมน์)
 
-**เมื่อใช้:** ต้องมี Filter/Search ที่ซับซ้อน
+**เมื่อใช้:** ตารางที่ต้องกรอง/ค้นหา — ใส่ `data-filter="true"` ที่ `<th>` แล้ว TableManager สร้างแถบตัวกรองให้เอง
+**ห้ามเขียนฟอร์มกรองแยก (`data-table-filter`)** เมื่อตัวกรองบนคอลัมน์ทำได้ (select · tabs · date · daterange · number · text · ค้นหา · จำนวนต่อหน้า)
 
-**ตัวอย่าง:** `templates/settings/languages.html`
+**ตัวอย่าง:** `templates/settings/loginattempts.html`
 
 ```html
-<!-- External Filter Form -->
-<form data-table-filter="languages" class="table_nav">  <!-- data-table-filter matches table -->
-  <div>
-    <label for="pageSize">Show</label>
-    <span class="form-control">
-      <select name="pageSize">
-        <option value="10">10 entries</option>
-        <option value="25">25 entries</option>
-        <option value="50">50 entries</option>
-      </select>
-    </span>
-  </div>
-  <input type="search" name="search" placeholder="Search...">
-</form>
-
-<!-- Table (linked to filter form) -->
-<table class="table border fullwidth" 
-       data-table="languages"               <!-- Must match data-table-filter -->
-       data-source="api/index/languages" 
-       data-default-sort="id desc" 
-       data-page-size="25"
-       data-show-checkbox="true"
-       data-actions='{"delete":"Delete"}'
-       data-action-url="api/index/languages/action"
-       data-action-button="Process|btn-success"
-       data-row-actions='{"edit": {"label": "Edit","className": "btn btn-success"}}'
-       data-dynamic-columns="true">
-  
+<table class="table border fullwidth"
+       data-table="approvals" data-source="api/booking/approvals"
+       data-default-sort="created_at desc"
+       data-page-size="25"                         <!-- ตัวเลือกจำนวนต่อหน้า -->
+       data-search-columns="topic,reason"          <!-- เปิดช่องค้นหา -->
+       data-search-placeholder="{LNG_Search}...">  <!-- ข้อความในช่องค้นหา -->
+  <thead>
+    <tr>
+      <!-- พารามิเตอร์ที่ไม่มีคอลัมน์ของตัวเอง = คอลัมน์ซ่อน -->
+      <th data-field="year" data-filter="true" data-type="select" data-show-all="false" data-hidden="true" data-i18n>{LNG_Year}</th>
+      <th data-field="member_id" data-filter="true" data-type="select" data-show-all="true" data-all-value="" data-format="lookup" data-i18n>{LNG_Requester}</th>
+      <th data-field="begin" data-filter="true" data-type="daterange" data-range-names="from,to"
+          data-range-presets="today,7d,30d,thismonth,lastmonth" data-format="datetime" data-i18n>{LNG_Start date}</th>
+      <th data-field="status" data-filter="true" data-type="select" data-formatter="formatTableOptionStatus" data-i18n>{LNG_Status}</th>
+    </tr>
+  </thead>
   <tbody></tbody>
 </table>
 ```
+
+- ชื่อพารามิเตอร์ = `data-field` (ช่วงวันที่ = `data-range-names`) — ห้ามใช้ `module` `method` `action` (Router สงวนไว้)
+- ชื่อพารามิเตอร์ซ้ำกับคอลัมน์ที่แสดงอยู่แล้ว ให้ใส่ตัวกรองบนคอลัมน์นั้นเลย (ห้ามมี `data-field` ซ้ำสองคอลัมน์)
+- ตัวเลือกของ select/tabs มาจาก `getFilters()` ของ API (`filters` ใน response) — ไม่ใช่ `getOptions()`
+- API ส่งตัวเลือก "ทั้งหมด" มาเองแล้ว → `data-show-all="false"`
+- `data-type="tabs"` = แท็บแทน dropdown ตัวเลือกส่ง `count` มาได้ (แสดงเป็นป้ายจำนวน)
+- `data-type="number"` อ่าน `data-min` `data-step` `data-precision` · `currency` รับค่าติดลบ
+- ปุ่ม/ลิงก์นอกตารางที่ต้องใช้ค่าตัวกรอง (ส่งออก · ฟอร์มอื่น) ผูกผ่าน `data-load-target` กับ `meta`/`options` ของ response
+  เช่น `data-attr="href:options.export_url"` — ไม่ต้องเขียนสคริปต์อ่านค่าตัวกรอง
 
 ---
 
@@ -1640,37 +1638,7 @@ class Model extends \Kotchasan\Model
 </div>
 ```
 
-**Filter Form (Table Navigation):**
-```html
-<form data-table-filter="tableName" class="table_nav">
-  <div>
-    <label>Show</label>
-    <select name="pageSize">
-      <option value="10">10 entries</option>
-      <option value="25">25 entries</option>
-    </select>
-  </div>
-  
-  <div>
-    <label>Status</label>
-    <select name="status" data-attr="value:status">
-      <option value="">All</option>
-    </select>
-  </div>
-  
-  <div>
-    <label>From</label>
-    <input type="date" name="from">
-  </div>
-  
-  <div>
-    <label>To</label>
-    <input type="date" name="to">
-  </div>
-  
-  <input type="search" name="search" placeholder="Search...">
-</form>
-```
+**Filter (Table Navigation):** ใช้ตัวกรองบนหัวคอลัมน์ (`data-filter="true"`) ดู Pattern 5
 
 ---
 
