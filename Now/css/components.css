@@ -937,11 +937,11 @@ button,
   pointer-events: none;
 }
 /* Badge */
-.badge-success::after,
-.badge-danger::after,
-.badge-error::after,
-.badge-warning::after,
-.badge-info::after {
+.badge-success[data-badge]::after,
+.badge-danger[data-badge]::after,
+.badge-error[data-badge]::after,
+.badge-warning[data-badge]::after,
+.badge-info[data-badge]::after {
   content: attr(data-badge);
   display: inline-flex;
   align-items: center;
@@ -951,19 +951,40 @@ button,
   font-size: var(--font-size-xs);
   padding: 0 10px;
 }
+.badge-success:not([data-badge]),
+.badge-danger:not([data-badge]),
+.badge-error:not([data-badge]),
+.badge-warning:not([data-badge]),
+.badge-info:not([data-badge]) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: var(--font-size-xs);
+  padding: 0 0.4rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: fit-content;
+}
+.badge-info:not([data-badge]),
 .badge-info::after {
   background-color: var(--notification-info-bg);
   color: var(--notification-info-text);
 }
+.badge-danger:not([data-badge]),
+.badge-error:not([data-badge]),
 .badge-danger::after,
 .badge-error::after {
   background-color: var(--notification-error-bg);
   color: var(--notification-error-text);
 }
+.badge-warning:not([data-badge]),
 .badge-warning::after {
   background-color: var(--notification-warning-bg);
   color: var(--notification-warning-text);
 }
+.badge-success:not([data-badge]),
 .badge-success::after {
   background: var(--notification-success-bg);
   color: var(--notification-success-text);
