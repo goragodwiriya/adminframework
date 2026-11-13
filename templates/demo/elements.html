@@ -1,0 +1,335 @@
+<!-- หน้าตัวอย่างช่องฟอร์มทุกชนิดของ Now.js (ดู modules/demo/admin.js สำหรับ route /demo-elements)
+
+     ช่องแต่ละชนิดเลือกด้วย data-element แล้วตั้งค่าด้วย data-* — ใต้ช่องมีบรรทัดสีเทาบอก attribute
+     ที่ใช้ เพื่อให้คัดลอกไปใช้ต่อได้ · กดบันทึกแล้วเซิร์ฟเวอร์ส่งสิ่งที่ได้รับกลับมาแสดง (ไม่บันทึกอะไรจริง)
+     ช่อง rich text ดูที่หน้า /demo-richtext -->
+<div class="card-groups">
+  <header>
+    <div>
+      <h1 class="icon-edit" data-i18n>{LNG_Example} {LNG_Form elements}</h1>
+      <p data-i18n>{LNG_Every field type of Now.js on one page. Press Save to see what the server receives}</p>
+    </div>
+  </header>
+  <section>
+    <form method="POST" action="api/demo/playground/submit" data-form="demoElements" data-validate="true" data-reset="false">
+
+      <fieldset>
+        <legend class="icon-edit" data-i18n>Text</legend>
+
+        <div>
+          <label for="el_text" data-i18n>Text</label>
+          <span class="form-control icon-edit">
+            <input type="text" id="el_text" name="text" data-element="text" maxlength="60" placeholder="Required text" required>
+          </span>
+          <p class="comment">data-element="text" · required · maxlength</p>
+        </div>
+
+        <div>
+          <div class="form-group">
+            <div class="width50">
+              <label for="el_email" data-i18n>Email</label>
+              <span class="form-control icon-email">
+                <input type="email" id="el_email" name="email" data-element="email" placeholder="name@example.com">
+              </span>
+              <p class="comment">data-element="email" — checks the format</p>
+            </div>
+            <div class="width50">
+              <label for="el_url" data-i18n>URL</label>
+              <span class="form-control icon-world">
+                <input type="url" id="el_url" name="url" data-element="url" placeholder="https://example.com">
+              </span>
+              <p class="comment">data-element="url"</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label for="el_autocomplete" data-i18n>Autocomplete</label>
+          <span class="form-control icon-search">
+            <input type="text" id="el_autocomplete" name="country" data-element="text" data-autocomplete="true" data-source="api/demo/playground/lookup" data-min-length="1" placeholder="Type a country, e.g. Jap">
+          </span>
+          <p class="comment">data-autocomplete="true" · data-source="api/…" asks GET ?q=… and reads [{value, text}]</p>
+        </div>
+
+        <div>
+          <label for="el_textarea" data-i18n>Textarea</label>
+          <span class="form-control icon-file">
+            <textarea id="el_textarea" name="textarea" rows="3" maxlength="200" data-element="textarea" data-auto-resize="true" data-char-count="true" placeholder="Grows as you type"></textarea>
+          </span>
+          <p class="comment">data-element="textarea" · data-auto-resize · data-char-count · maxlength</p>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="icon-config" data-i18n>Numbers and formats</legend>
+
+        <div>
+          <div class="form-group">
+            <div class="width50">
+              <label for="el_number" data-i18n>Number</label>
+              <span class="form-control icon-number">
+                <input type="text" id="el_number" name="number" data-element="number" data-precision="2" data-use-grouping="true" data-allow-negative="true" min="-9999999" max="9999999" value="1234567.5">
+              </span>
+              <p class="comment">data-element="number" · data-precision="2" · data-use-grouping · data-allow-negative · min / max</p>
+            </div>
+            <div class="width50">
+              <label for="el_currency" data-i18n>Currency</label>
+              <span class="form-control icon-money">
+                <input type="text" id="el_currency" name="currency" data-element="currency" data-decimals="2" data-use-grouping="true" value="2490">
+              </span>
+              <p class="comment">data-element="currency" · data-decimals · selects its text on focus</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="form-group">
+            <div class="width50">
+              <label for="el_tel" data-i18n>Phone</label>
+              <span class="form-control icon-phone">
+                <input type="text" id="el_tel" name="tel" data-element="tel">
+              </span>
+              <p class="comment">data-element="tel" — the ready-made mask 99-9999-9999</p>
+            </div>
+            <div class="width50">
+              <label for="el_idcard" data-i18n>National ID</label>
+              <span class="form-control icon-profile">
+                <input type="text" id="el_idcard" name="idcard" data-element="mask" data-format="idcard">
+              </span>
+              <p class="comment">data-element="mask" data-format="idcard" (also: date, time, datetime, creditcard, ip, zipcode)</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label for="el_pattern" data-i18n>Custom mask</label>
+          <span class="form-control icon-edit">
+            <input type="text" id="el_pattern" name="plate" data-element="mask" data-pattern="aa-9999" placeholder="ab-1234">
+          </span>
+          <p class="comment">data-element="mask" data-pattern="aa-9999" — 9 = digit · a = letter · * = either</p>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="icon-calendar" data-i18n>Date and time</legend>
+
+        <div>
+          <div class="form-group">
+            <div class="width50">
+              <label for="el_date" data-i18n>Date</label>
+              <span class="form-control icon-calendar">
+                <input type="date" id="el_date" name="date" data-element="date">
+              </span>
+              <p class="comment">type="date" data-element="date"</p>
+            </div>
+            <div class="width50">
+              <label for="el_datetime" data-i18n>Date and time</label>
+              <span class="form-control icon-clock">
+                <input type="datetime-local" id="el_datetime" name="datetime" data-element="date">
+              </span>
+              <p class="comment">type="datetime-local" data-element="date"</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="form-group">
+            <div class="width50">
+              <label for="el_time" data-i18n>Time</label>
+              <span class="form-control icon-clock">
+                <input type="time" id="el_time" name="time" data-element="date">
+              </span>
+              <p class="comment">type="time" data-element="date"</p>
+            </div>
+            <div class="width50">
+              <label for="el_daterange" data-i18n>Date range</label>
+              <span class="form-control icon-calendar">
+                <input type="text" id="el_daterange" name="period" data-element="daterange" data-range-end="period_to" data-range-presets="today,7d,30d,thismonth,lastmonth">
+              </span>
+              <p class="comment">data-element="daterange" · data-range-end names the end field · data-range-presets</p>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="icon-list" data-i18n>Choices</legend>
+
+        <div>
+          <div class="form-group">
+            <div class="width50">
+              <label for="el_select" data-i18n>Select</label>
+              <span class="form-control icon-category">
+                <select id="el_select" name="select" data-element="select" data-placeholder="Select an option">
+                  <option value="bkk">Bangkok</option>
+                  <option value="cnx">Chiang Mai</option>
+                  <option value="hkt">Phuket</option>
+                  <option value="kkc">Khon Kaen</option>
+                </select>
+              </span>
+              <p class="comment">data-element="select" · data-placeholder · options from <code>&lt;option&gt;</code> or data-options-key (API)</p>
+            </div>
+            <div class="width50">
+              <label for="el_multi" data-i18n>Multiple select</label>
+              <span class="form-control icon-category">
+                <select id="el_multi" name="multi[]" multiple data-element="select-multiple" data-placeholder="Select options">
+                  <option value="red">Red</option>
+                  <option value="green" selected>Green</option>
+                  <option value="blue" selected>Blue</option>
+                  <option value="yellow">Yellow</option>
+                </select>
+              </span>
+              <p class="comment">data-element="select-multiple" on a <code>&lt;select multiple&gt;</code></p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label for="el_tags" data-i18n>Tags</label>
+          <span class="form-control icon-tags">
+            <input type="text" id="el_tags" name="tags" data-element="tags" data-max-tags="8" placeholder="Add a tag and press Enter">
+          </span>
+          <p class="comment">data-element="tags" · data-max-tags · Enter or comma adds · Backspace removes the last</p>
+        </div>
+
+        <div>
+          <label for="el_tags_source" data-i18n>Tags from the server</label>
+          <span class="form-control icon-world">
+            <input type="text" id="el_tags_source" name="countries" data-element="tags" data-source="api/demo/playground/lookup" data-allow-new="false" data-min-length="1" placeholder="Pick countries from the list">
+          </span>
+          <p class="comment">data-source="api/…" with data-allow-new="false" — only values the server offered can become tags</p>
+        </div>
+
+        <div>
+          <label data-i18n>Radio group</label>
+          <div class="form-control radiogroups icon-valid">
+            <label>
+              <input type="radio" name="size" value="s">
+              <span>S</span>
+            </label>
+            <label>
+              <input type="radio" name="size" value="m" checked>
+              <span>M</span>
+            </label>
+            <label>
+              <input type="radio" name="size" value="l">
+              <span>L</span>
+            </label>
+          </div>
+          <p class="comment">.form-control.radiogroups around native radios</p>
+        </div>
+
+        <div>
+          <input type="checkbox" class="switch" id="el_switch" name="newsletter" value="1" checked>
+          <label for="el_switch" data-i18n>Newsletter</label>
+          <p class="comment">input.switch — a checkbox drawn as a toggle (not sent when off)</p>
+        </div>
+
+        <div>
+          <input type="checkbox" id="el_checkbox" name="agree" value="1" required>
+          <label for="el_checkbox" data-i18n>I agree to the terms</label>
+          <p class="comment">a native checkbox with required</p>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="icon-color" data-i18n>Colour and range</legend>
+
+        <div>
+          <div class="form-group">
+            <div class="width50">
+              <label for="el_color" data-i18n>Colour</label>
+              <span class="form-control icon-color">
+                <input type="color" id="el_color" name="color" data-element="color" value="#4d96ff">
+              </span>
+              <p class="comment">type="color" data-element="color" — palette plus a hex box</p>
+            </div>
+            <div class="width50">
+              <label for="el_range" data-i18n>Range</label>
+              <span class="form-control icon-chart">
+                <input type="range" id="el_range" name="volume" data-element="range" min="0" max="100" step="5" value="40" data-show-labels="true" data-suffix="%">
+              </span>
+              <p class="comment">type="range" data-element="range" · data-show-labels · data-prefix / data-suffix</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label for="el_range2" data-i18n>Range with two handles</label>
+          <span class="form-control icon-chart">
+            <input type="text" id="el_range2" name="budget" data-element="range" data-range min="0" max="10000" step="100" value="2000,8000" data-show-labels="true" data-prefix="฿">
+          </span>
+          <p class="comment">data-range turns it into min–max, value="2000,8000" is posted as that text</p>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="icon-lock" data-i18n>Password and files</legend>
+
+        <div>
+          <div class="form-group">
+            <div class="width50">
+              <label for="el_password" data-i18n>Password</label>
+              <span class="form-control icon-password">
+                <input type="password" id="el_password" name="password" data-element="password" data-password-strength="true" autocomplete="new-password" placeholder="Strength meter and rule list">
+              </span>
+              <p class="comment">data-element="password" · data-password-strength</p>
+            </div>
+            <div class="width50">
+              <label for="el_password2" data-i18n>Confirm Password</label>
+              <span class="form-control icon-password">
+                <input type="password" id="el_password2" name="password2" data-element="password" data-target-password="#el_password" autocomplete="new-password" placeholder="Must match">
+              </span>
+              <p class="comment">data-target-password="#el_password" — compared with the other field</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label for="el_file" data-i18n>Files</label>
+          <span class="form-control icon-upload">
+            <input type="file" id="el_file" name="files[]" multiple data-element="file" data-preview="true" data-drag-drop="true" data-max-file-size="2097152" placeholder="Drop files here or click">
+          </span>
+          <p class="comment">data-element="file" · data-preview · data-drag-drop · data-max-file-size (bytes) — the demo server does not store them</p>
+        </div>
+
+        <div class="form-group">
+          <div class="width50">
+            <label for="el_avatar" data-i18n>Avatar</label>
+            <span class="form-control icon-image">
+              <input type="file" id="el_avatar" name="avatar" accept="image/*" data-preview="true" data-crop="true" data-crop-aspect="1" data-crop-shape="circle" data-crop-width="400" placeholder="Choose an image to crop">
+            </span>
+            <p class="comment">data-crop · data-crop-aspect="1" · data-crop-shape="circle" · data-crop-width="400" — drag, zoom and turn the image in the frame; the server gets the cropped image</p>
+          </div>
+          <div class="width50">
+            <label for="el_photo" data-i18n>Photo</label>
+            <span class="form-control icon-image">
+              <input type="file" id="el_photo" name="photos[]" multiple accept="image/*" data-preview="true" data-crop="true" data-crop-aspect="3/4" data-crop-width="600" data-crop-format="webp" data-crop-min-width="300" placeholder="Choose images to crop">
+            </span>
+            <p class="comment">data-crop-aspect="3/4" · data-crop-format="webp" · data-crop-min-width="300" · multiple — each image is cropped in turn; the crop button on a preview crops it again from the original</p>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="icon-code" data-i18n>Code</legend>
+
+        <div>
+          <label for="el_code" data-i18n>Code editor</label>
+          <span class="form-control">
+            <textarea id="el_code" name="script" data-element="code" data-language="javascript" data-min-lines="6" data-max-height="320">// Syntax colours, line numbers, auto-closing brackets
+function greet(name) {
+  return `Hello, ${name}!`;
+}</textarea>
+          </span>
+          <p class="comment">data-element="code" · data-language (javascript, json, html, css, php, sql, text) · data-min-lines · data-max-height · data-theme</p>
+        </div>
+      </fieldset>
+
+      <fieldset class="submit">
+        <button type="submit" class="btn btn-primary icon-save" data-i18n>Save Settings</button>
+        <button type="reset" class="btn btn-secondary icon-reset" data-i18n>Reset</button>
+      </fieldset>
+    </form>
+  </section>
+</div>

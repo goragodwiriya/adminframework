@@ -1,0 +1,22 @@
+<!-- เทมเพลตของ modal ที่แสดงสิ่งที่เซิร์ฟเวอร์ได้รับจากฟอร์มตัวอย่าง
+     เปิดโดย modules/demo/controllers/playground.php::submit() — data-text ใช้ textContent
+     ค่าที่ผู้ใช้พิมพ์ (รวม HTML ของ rich text) จึงแสดงเป็นข้อความดิบเสมอ ไม่ถูกตีความ -->
+<article>
+  <p class="comment" data-i18n>{LNG_This is sample data, nothing was changed}</p>
+  <table class="table border fullwidth">
+    <thead>
+      <tr>
+        <th data-i18n>{LNG_Field}</th>
+        <th data-i18n>{LNG_Value}</th>
+      </tr>
+    </thead>
+    <tbody data-for="field in fields">
+      <template>
+        <tr>
+          <td data-text="field.name"></td>
+          <td data-text="field.value"></td>
+        </tr>
+      </template>
+    </tbody>
+  </table>
+</article>

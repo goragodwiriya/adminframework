@@ -1,0 +1,191 @@
+<!-- หน้าตัวอย่าง component ของ Now.js (route /demo-components ใน modules/demo/admin.js)
+
+     ปุ่มที่ต้องเรียก JavaScript ใช้ data-on="click:demoPage.xxx" — ฟังก์ชันอยู่ใน modules/demo/admin.js
+     (data-on เรียกตรงไปที่ NotificationManager/DialogManager ไม่ได้ เพราะ Now.resolveFunction() ไม่ยอมให้
+     directive ชี้ไปที่ global ของเฟรมเวิร์ก จึงต้องมีฟังก์ชันของแอปคั่นกลาง)
+     component ที่อยู่ใน feature bundle (tabs, gallery, icon picker, sortable, line items,
+     edit in place, task monitor) ถูกโหลดเองเมื่อ template มี selector ของมัน — ไม่ต้องใส่ <script> -->
+<div class="card-groups">
+  <header>
+    <div>
+      <h1 class="icon-modules" data-i18n>{LNG_Example} {LNG_Components}</h1>
+      <p data-i18n>{LNG_What Now.js gives you besides forms and tables. Every block shows the markup it uses}</p>
+    </div>
+  </header>
+
+  <!-- 1. แจ้งเตือน · dialog · modal — NotificationManager / DialogManager / Modal -->
+  <section>
+    <fieldset>
+      <legend class="icon-bell" data-i18n>Notifications, dialogs and modals</legend>
+
+      <p class="comment" data-i18n>NotificationManager shows toasts, DialogManager returns a Promise with the answer, Modal holds any content</p>
+
+      <div class="demo-buttons">
+        <button type="button" class="btn btn-success icon-valid" data-on="click:demoPage.notify('success')" data-i18n>Success</button>
+        <button type="button" class="btn btn-danger icon-warning" data-on="click:demoPage.notify('error')" data-i18n>Error</button>
+        <button type="button" class="btn btn-warning icon-warning" data-on="click:demoPage.notify('warning')" data-i18n>Warning</button>
+        <button type="button" class="btn btn-primary icon-info" data-on="click:demoPage.notify('info')" data-i18n>Info</button>
+        <button type="button" class="btn btn-secondary icon-clock" data-on="click:demoPage.notify('loading')" data-i18n>Loading</button>
+      </div>
+
+      <div class="demo-buttons">
+        <button type="button" class="btn btn-primary" data-on="click:demoPage.dialog('alert')">alert()</button>
+        <button type="button" class="btn btn-primary" data-on="click:demoPage.dialog('confirm')">confirm()</button>
+        <button type="button" class="btn btn-primary" data-on="click:demoPage.dialog('prompt')">prompt()</button>
+        <button type="button" class="btn btn-primary icon-layout" data-on="click:demoPage.modal">Modal</button>
+      </div>
+      <p class="comment"><span data-i18n>Answer</span>: <b id="demo_dialog_result">-</b></p>
+    </fieldset>
+  </section>
+
+  <!-- 2. tabs — data-component="tabs" -->
+  <section>
+    <fieldset>
+      <legend class="icon-menus" data-i18n>Tabs</legend>
+      <p class="comment">data-component="tabs" · data-default-tab · data-hash="false" (the default keeps the active tab in the URL hash so Back works)</p>
+
+      <div data-component="tabs" data-default-tab="two" data-hash="false">
+        <div class="tab-buttons" role="tablist">
+          <button type="button" class="tab-button" data-tab="one" role="tab">One</button>
+          <button type="button" class="tab-button" data-tab="two" role="tab">Two</button>
+          <button type="button" class="tab-button" data-tab="three" role="tab">Three</button>
+        </div>
+        <div class="tab-content">
+          <div class="tab-pane" data-tab="one" role="tabpanel"><p>Content of the first tab. Arrow keys, Home and End move between tabs.</p></div>
+          <div class="tab-pane" data-tab="two" role="tabpanel"><p>The second tab is open first because of data-default-tab="two".</p></div>
+          <div class="tab-pane" data-tab="three" role="tabpanel"><p>Panels are plain HTML — put a form, a table or another component in them.</p></div>
+        </div>
+      </div>
+    </fieldset>
+  </section>
+
+  <!-- 3. gallery — data-component="image-gallery" -->
+  <section>
+    <fieldset>
+      <legend class="icon-gallery" data-i18n>Image gallery</legend>
+      <p class="comment">data-component="image-gallery" · data-effect="fade|slide|none" · data-aspect · data-thumbnails-position · data-enable-zoom · or data-api="…" to load the list from a URL</p>
+
+      <div class="demo-gallery">
+        <div data-component="image-gallery" data-effect="slide" data-aspect="wide" data-thumbnails-position="bottom" data-enable-zoom="true">
+          <img src="images/og-image.webp" data-src="images/og-image.webp" alt="Open Graph image" data-caption="Open Graph image">
+          <img src="images/web-app-manifest-512x512.png" data-src="images/web-app-manifest-512x512.png" alt="App icon" data-caption="App icon">
+          <img src="images/logo.svg" data-src="images/logo.svg" alt="Logo" data-caption="Logo">
+          <img src="images/default-avatar.webp" data-src="images/default-avatar.webp" alt="Default avatar" data-caption="Default avatar">
+        </div>
+      </div>
+    </fieldset>
+  </section>
+
+  <!-- 4. ปฏิทิน — ตัวที่จัดสไตล์ครบคือ EventCalendar (eventcalendar.min.js/.css) ที่หน้าแรกใช้อยู่ ข้อมูลมาจาก hook
+       initCalendarSources/initCalendarEvents (ดู modules/demo/controllers/init.php) · ส่วน CalendarManager
+       (data-calendar) ไม่มี CSS ใน core จึงไม่นำมาโชว์ -->
+  <section>
+    <fieldset>
+      <legend class="icon-calendar" data-i18n>Calendar</legend>
+      <p data-i18n>The calendar of the home page (EventCalendar) lists the events of every module. A module adds its own through the initCalendarSources and initCalendarEvents hooks, as modules/demo does</p>
+      <p><a class="btn btn-primary icon-home" href="/" data-i18n>Home</a></p>
+    </fieldset>
+  </section>
+
+  <!-- 5. icon picker · sortable -->
+  <section>
+    <fieldset>
+      <legend class="icon-star0" data-i18n>Icon picker</legend>
+      <p class="comment">data-component="icon-picker" · data-name (the radio name that is posted) · data-value (selected icon)</p>
+      <div data-component="icon-picker" data-name="demo_icon" data-value="icon-home"></div>
+    </fieldset>
+  </section>
+
+  <section>
+    <fieldset>
+      <legend class="icon-move" data-i18n>Drag and drop</legend>
+      <p class="comment">data-component="sortable" · data-group (same group = items can cross lists) · data-handle · items need draggable="true" · data-sortable-api posts the new order</p>
+
+      <div class="demo-columns">
+        <div>
+          <h4 data-i18n>To do</h4>
+          <ul class="demo-sortable" data-component="sortable" data-group="demo-board" data-handle=".demo-handle">
+            <li draggable="true" data-id="1"><span class="demo-handle icon-move"></span> Design the login page</li>
+            <li draggable="true" data-id="2"><span class="demo-handle icon-move"></span> Write the API</li>
+            <li draggable="true" data-id="3"><span class="demo-handle icon-move"></span> Translate to Thai</li>
+          </ul>
+        </div>
+        <div>
+          <h4 data-i18n>Done</h4>
+          <ul class="demo-sortable" data-component="sortable" data-group="demo-board" data-handle=".demo-handle">
+            <li draggable="true" data-id="4"><span class="demo-handle icon-move"></span> Set up the project</li>
+          </ul>
+        </div>
+      </div>
+    </fieldset>
+  </section>
+
+  <!-- 6. แก้ในที่ — data-component="editinplace" -->
+  <section>
+    <fieldset>
+      <legend class="icon-edit" data-i18n>Edit in place</legend>
+      <p class="comment">data-component="editinplace" · data-field · data-edit-ajax-url (POSTs value and field) · data-required · data-maxlength · Enter or blur saves, Esc cancels. Type <b>error</b> to see the old value come back</p>
+
+      <p>
+        <span data-i18n>Title</span>:
+        <b data-component="editinplace" data-field="title" data-edit-ajax-url="api/demo/playground/inline" data-required="true" data-maxlength="60" data-placeholder="Click to edit">Click this text to edit it</b>
+      </p>
+    </fieldset>
+  </section>
+
+  <!-- 7. ตารางรายการสินค้า — data-line-items (LineItemsManager)
+       เลือกสินค้า → ถาม data-detail-api ด้วยค่าของทุกช่องที่มี data-role → เติมแถวตามฟิลด์ที่ตอบกลับ
+       แถวที่ sku ซ้ำกันรวมจำนวนให้ · ผลรวมคำนวณใน data-on-calculate (demoPage.calculate) -->
+  <section>
+    <fieldset>
+      <legend class="icon-cart" data-i18n>Line items</legend>
+      <p class="comment">data-line-items · data-detail-api · data-listen-select · data-api-params · data-merge-key · data-on-calculate · columns from &lt;th data-field data-type&gt;</p>
+
+      <div class="form-group">
+        <div class="width50">
+          <label for="demo_product" data-i18n>Product</label>
+          <span class="form-control icon-product">
+            <select id="demo_product" data-role="product">
+              <option value="">Select a product to add it</option>
+              <option value="P-001">P-001 · Wireless Mouse</option>
+              <option value="P-002">P-002 · Mechanical Keyboard</option>
+              <option value="P-003">P-003 · USB-C Hub</option>
+              <option value="P-004">P-004 · Monitor 27"</option>
+            </select>
+          </span>
+        </div>
+        <div class="width50">
+          <label for="demo_qty" data-i18n>Quantity</label>
+          <span class="form-control icon-number">
+            <input type="number" id="demo_qty" data-role="qty" value="1" min="1" max="99">
+          </span>
+        </div>
+      </div>
+
+      <table class="table border fullwidth" data-line-items="items" data-detail-api="api/demo/playground/product" data-listen-select="[data-role='product']" data-api-params="[data-role]" data-allow-delete="true" data-merge-key="sku" data-on-calculate="demoPage.calculate">
+        <thead>
+          <tr>
+            <th data-field="sku" data-i18n>SKU</th>
+            <th data-field="name" data-i18n>Name</th>
+            <th data-field="quantity" data-type="number" data-min="1" data-max="99" data-cell-class="center" data-i18n>Quantity</th>
+            <th data-field="unit_price" data-type="currency" data-readonly="true" data-decimals="2" data-i18n>Unit Price</th>
+            <th data-field="subtotal" data-type="currency" data-readonly="true" data-decimals="2" data-i18n>Subtotal</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <p class="right"><span data-i18n>Total</span>: <b id="demo_total">0.00</b></p>
+    </fieldset>
+  </section>
+
+  <!-- 8. task monitor — data-component="task-monitor" ถามงานเบื้องหลังเป็นช่วง ๆ (api/demo/playground/tasks) -->
+  <section>
+    <fieldset>
+      <legend class="icon-refresh" data-i18n>Task monitor</legend>
+      <p class="comment">data-component="task-monitor" · data-endpoint · data-items="data.active" · data-interval · data-label-field / data-status-field / data-progress-field — polls only while something runs and pauses while the tab is hidden</p>
+
+      <div data-component="task-monitor" data-endpoint="api/demo/playground/tasks" data-items="data.active" data-interval="3000" data-idle-interval="3000" data-hide-when-idle="false" data-notify="false"></div>
+    </fieldset>
+  </section>
+</div>

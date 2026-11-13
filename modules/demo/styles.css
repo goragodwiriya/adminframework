@@ -1,0 +1,48 @@
+/**
+ * modules/demo/styles.css — เฉพาะของหน้าตัวอย่าง component (templates/demo/components.html)
+ *
+ * index.php แทรก <link> ของไฟล์นี้ให้เอง (modules/<ชื่อ>/styles.css) — ลบโฟลเดอร์ modules/demo
+ * แล้วไฟล์นี้ก็หายไปพร้อมกัน ใช้ตัวแปรสีของธีมเท่านั้น จึงเปลี่ยนตาม light/dark เอง
+ */
+
+.demo-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.demo-gallery {
+  max-width: 640px;
+}
+
+.demo-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.demo-sortable {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  min-height: 56px;
+  border: 1px dashed var(--color-border, #cbd5e1);
+  border-radius: 8px;
+}
+
+.demo-sortable li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  padding: 8px 12px;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: 6px;
+}
+
+.demo-handle {
+  cursor: grab;
+  opacity: 0.6;
+}
