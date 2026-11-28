@@ -1,0 +1,128 @@
+<!-- หน้าตัวอย่าง Rich Text Editor (route /demo-richtext ใน modules/demo/admin.js)
+
+     ตัวแก้ไขคือ <textarea data-element="richtext"> — ตัวเลือกผ่าน data-rte-* ส่วนตัว editor (richtext-editor.min.js/.css)
+     ไม่ได้อยู่ใน core จึงโหลดโดย data-script="demoLoadEditor" เฉพาะตอนเปิดหน้านี้ (ดู modules/demo/admin.js)
+     ก่อนที่ editor จะพร้อม ช่องจะรอและลองซ้ำเองทุก 100 ms ไม่ต้องรอใน template -->
+<div class="card-groups" data-script="demoLoadEditor">
+  <header>
+    <div>
+      <h1 class="icon-edit" data-i18n>{LNG_Example} {LNG_Rich Text Editor}</h1>
+      <p data-i18n>{LNG_One textarea becomes a full editor. Pick a profile, set the height, read and write the content from JavaScript}</p>
+    </div>
+  </header>
+
+  <section>
+    <form method="POST" action="api/demo/playground/submit" data-form="demoRichtext" data-validate="true" data-reset="false">
+
+      <!-- โปรไฟล์ทั้ง 5 แบบ: data-rte-profile = full | basic | minimal | comment | email
+           ใช้ tabs แยกเพื่อให้เห็นทีละตัว (และเป็นตัวอย่างของ tabs ด้วย) -->
+      <fieldset>
+        <legend class="icon-edit" data-i18n>Profiles</legend>
+        <p class="comment" data-i18n>A profile is a ready-made toolbar and plugin set chosen with data-rte-profile</p>
+
+        <div data-component="tabs" data-default-tab="basic" data-hash="false">
+          <div class="tab-buttons" role="tablist">
+            <button type="button" class="tab-button" data-tab="basic" role="tab">basic</button>
+            <button type="button" class="tab-button" data-tab="full" role="tab">full</button>
+            <button type="button" class="tab-button" data-tab="minimal" role="tab">minimal</button>
+            <button type="button" class="tab-button" data-tab="comment" role="tab">comment</button>
+            <button type="button" class="tab-button" data-tab="email" role="tab">email</button>
+            <button type="button" class="tab-button" data-tab="api" role="tab">JavaScript API</button>
+          </div>
+          <div class="tab-content">
+
+            <div class="tab-pane" data-tab="basic" role="tabpanel">
+              <label for="rte_basic" data-i18n>Content</label>
+              <textarea id="rte_basic" name="content_basic" data-element="richtext" data-rte-profile="basic" data-rte-min-height="260"><h2>Hello, Now.js</h2>
+<p>This is the <strong>basic</strong> profile: bold, italic, underline, headings, lists, alignment, links, images, tables, video, colours, source view and full screen.</p>
+<ul>
+<li>Paste from Word or a web page — it is cleaned for you</li>
+<li>Drag an image in, or use <em>Image → Browse files</em></li>
+</ul>
+<p>ภาษาไทยพิมพ์ได้ตามปกติ ตัวอักษรและวรรณยุกต์ไม่เพี้ยน</p></textarea>
+              <p class="comment">data-element="richtext" data-rte-profile="basic" (the default when none is given is <b>full</b>)</p>
+            </div>
+
+            <div class="tab-pane" data-tab="full" role="tabpanel">
+              <label for="rte_full" data-i18n>Content</label>
+              <textarea id="rte_full" name="content_full" data-element="richtext" data-rte-profile="full" data-rte-min-height="300" data-rte-sticky="true"><h2>Full profile</h2>
+<p>Everything in basic plus strikethrough, super/subscript, justify, indent, emoji 😀, special characters ©, text direction, find &amp; replace, print, word count and autosave.</p>
+<blockquote>The full profile keeps a draft in localStorage every 30 seconds.</blockquote>
+<table>
+<tbody>
+<tr><th>Item</th><th>Qty</th></tr>
+<tr><td>Wireless Mouse</td><td>2</td></tr>
+<tr><td>USB-C Hub</td><td>1</td></tr>
+</tbody>
+</table>
+<p>H<sub>2</sub>O and x<sup>2</sup></p></textarea>
+              <p class="comment">data-rte-profile="full" · data-rte-sticky="true" keeps the toolbar at the top of the screen while you scroll a long document</p>
+            </div>
+
+            <div class="tab-pane" data-tab="minimal" role="tabpanel">
+              <label for="rte_minimal" data-i18n>Content</label>
+              <textarea id="rte_minimal" name="content_minimal" data-element="richtext" data-rte-profile="minimal" data-rte-height="180"><p>Only the basics: <strong>bold</strong>, <em>italic</em>, <u>underline</u>, lists, undo/redo and clear formatting.</p></textarea>
+              <p class="comment">data-rte-profile="minimal" · data-rte-height="180" fixes the height (px) · also data-rte-min-height and data-rte-max-height</p>
+            </div>
+
+            <div class="tab-pane" data-tab="comment" role="tabpanel">
+              <label for="rte_comment" data-i18n>Content</label>
+              <textarea id="rte_comment" name="content_comment" data-element="richtext" data-rte-profile="comment" data-rte-placeholder="Write a comment…"></textarea>
+              <p class="comment">data-rte-profile="comment" · data-rte-placeholder (or the native placeholder) — short replies, limited to 2000 characters with a counter</p>
+            </div>
+
+            <div class="tab-pane" data-tab="email" role="tabpanel">
+              <label for="rte_email" data-i18n>Content</label>
+              <textarea id="rte_email" name="content_email" data-element="richtext" data-rte-profile="email" data-rte-fonts="Sarabun|Kanit|Tahoma, sans-serif"><p>Dear customer,</p>
+<p>Thank you for your order. We will ship it within <strong>2 business days</strong>.</p>
+<p>Best regards,<br>The team</p></textarea>
+              <p class="comment">data-rte-profile="email" · data-rte-fonts="Sarabun|Kanit|Tahoma, sans-serif" limits the font dropdown (separated by |, or a JSON array) — plus lists, alignment, links, images and a 10-second draft autosave</p>
+            </div>
+
+
+            <div class="tab-pane" data-tab="api" role="tabpanel">
+              <p class="comment" data-i18n>The factory puts setValue, getValue, focus, clear and setReadOnly on the field's instance (ElementManager.getInstanceByElement)</p>
+
+              <div>
+                <label for="rte_api" data-i18n>Content</label>
+                <textarea id="rte_api" name="content_api" data-element="richtext" data-rte-profile="basic" data-rte-min-height="200"><p>Edit me, then press the buttons below.</p></textarea>
+                <p class="comment">the native readonly attribute (or data-read-only="true") starts an editor read only</p>
+              </div>
+
+              <div>
+                <button type="button" class="btn btn-primary icon-edit" data-on="click:demoPage.rteSample" data-i18n>Set sample content</button>
+                <button type="button" class="btn btn-secondary icon-search" data-on="click:demoPage.rteRead" data-i18n>Read content</button>
+                <button type="button" class="btn btn-secondary icon-lock" data-on="click:demoPage.rteToggleReadonly" data-i18n>Toggle read only</button>
+                <button type="button" class="btn btn-secondary icon-delete" data-on="click:demoPage.rteClear" data-i18n>Clear</button>
+              </div>
+
+              <div>
+                <label for="rte_out" data-i18n>Output of getValue()</label>
+                <span class="form-control icon-code">
+                  <textarea id="rte_out" rows="6" readonly></textarea>
+                </span>
+                <p class="comment" id="rte_stats"></p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="submit">
+        <button type="submit" class="btn btn-primary icon-save" data-i18n>Save Settings</button>
+      </fieldset>
+    </form>
+  </section>
+
+  <section>
+    <fieldset>
+      <legend class="icon-warning" data-i18n>Good to know</legend>
+      <ul>
+        <li data-i18n>The editor returns the HTML exactly as written. The server decides what to keep: ->detail() keeps everything, ->detail(false) removes what can run JavaScript, ->cleanHtml() keeps formatting only</li>
+        <li data-i18n>Images and links can be picked from the file browser (js/components/editor/php/filebrowser.php, folder datas/images)</li>
+        <li data-i18n>The AI buttons of the basic and full profiles call api/index/aiwriter, which this base project does not include</li>
+      </ul>
+    </fieldset>
+  </section>
+</div>
